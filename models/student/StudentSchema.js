@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 
 const Student = mongoose.Schema({
   firstName: { type: String, required: true },
-  lasName: { type: String, required: true },
+  lastName: { type: String, required: true },
   fatherName: { type: String, required: true },
   motherName: { type: String, required: true },
   mobile_no: { type: Number, required: true },
@@ -22,17 +22,21 @@ const Student = mongoose.Schema({
     required: true,
     enum: ["male", "female", "other", "prefer not to say"],
   },
-  dob: { type: Date, required: true },
+  dob: { type: String, required: true },
   religion: { type: String, required: true },
   martial_status: { type: String, required: true },
   blood_group: { type: String, required: true },
   national_id: { type: String, required: true },
-  national_id_number: { type: String, required: true },
-  admission_date: {
-    type: Date,
+  national_id_number: { type: Number, required: true },
+  addmission_date: {
+    type: String,
     required: true,
   },
-  current_address: { type: mongoose.Schema.Types.ObjectId, ref: "Address" },
+  current_address: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Address",
+    default: null,
+  },
   education: [
     { type: mongoose.Schema.Types.ObjectId, ref: "Education", default: null },
   ],

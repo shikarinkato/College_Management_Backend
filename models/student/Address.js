@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 
 const Address = mongoose.Schema({
+  category: { type: String, required: true },
   studentId_or_teacherId: {
     type: mongoose.Schema.Types.ObjectId,
     required: true,
