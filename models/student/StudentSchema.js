@@ -12,10 +12,8 @@ const Student = mongoose.Schema({
     unique: true,
     lowercase: true,
     trim: true,
-    match: [
-      /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/,
-      "Please provide a valid email address",
-    ],
+    match: [/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/],
+    message: "Please provide a valid email address",
   },
   gender: {
     type: String,
@@ -26,8 +24,34 @@ const Student = mongoose.Schema({
   religion: { type: String, required: true },
   martial_status: { type: String, required: true },
   blood_group: { type: String, required: true },
-  national_id: { type: String, required: true },
-  national_id_number: { type: Number, required: true },
+  national_id: {
+    type: String,
+    required: true,
+    enum: ["Adhar Card", "Pan Card", "Driving License"],
+    message: "Please of the reuired National ID",
+  },
+  national_id_number: {
+    type: Number,
+    required: true,
+    validate: {
+      validator: function (value) {
+        if (this.national_id === "Adhar Card") {
+          return value.toString().length === 12 ? true : false;
+        } else if (this.national_id === "Pan Card") {
+          return value.toString().length === 10 ? true : false;
+        } else if (this.national_id === "Driving License") {
+          return value.toString().length >= 10 && value.toString().length <= 20
+            ? true
+            : false;
+        } else {
+          return true;
+        }
+      },
+      message: function () {
+        return `Please provide valid National ID Number for specific ID (check Length of provided Input)`;
+      },
+    },
+  },
   addmission_date: {
     type: String,
     required: true,
@@ -46,6 +70,22 @@ const Student = mongoose.Schema({
     marksheet_10th: { type: String, required: true },
     marksheet_12th: { type: String, required: true },
     bachelor_marksheet: { type: String, default: null },
+  },
+  department: {
+    name: { type: String, default: null },
+    id: { type: mongoose.Schema.Types.ObjectId, ref: "Department" },
+  },
+  results: [{ semester: { type: String }, resultLink: { type: String } }],
+  achievements: [
+    {
+      name: { type: String },
+      achieveDesc: { type: String },
+      digitalLink: { type: String },
+    },
+  ],
+  semester: {
+    name: { type: String },
+    id: { type: mongoose.Schema.Types.ObjectId, ref: "Semester" },
   },
 });
 

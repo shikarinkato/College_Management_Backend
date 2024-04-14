@@ -1,9 +1,11 @@
 import { config } from "dotenv";
 import jwt from "jsonwebtoken";
-import StudentSchema from "../models/student/StudentSchema.js";
-import { ErrorHandler } from "../middlewares/ErrorHandler.js";
-import AddressSchema from "../models/student/Address.js";
-import EducationSchema from "../models/student/Education.js";
+import StudentSchema from "../../models/student/StudentSchema.js";
+import { ErrorHandler } from "../../middlewares/ErrorHandler.js";
+import AddressSchema from "../../models/student/Address.js";
+import EducationSchema from "../../models/student/Education.js";
+import DepartmentSchema from "../../models/department/Department.js";
+import SemesterSchema from "../../models/department/Semester.js";
 
 export const AddNewStudent = async (req, res) => {
   let {
@@ -24,6 +26,8 @@ export const AddNewStudent = async (req, res) => {
     current_address,
     education,
     documents,
+    department,
+    semester,
   } = req.body;
   try {
     if (
@@ -40,23 +44,34 @@ export const AddNewStudent = async (req, res) => {
       !national_id ||
       !national_id_number ||
       !addmission_date ||
-      !documents
+      !documents ||
+      !department ||
+      !semester
     ) {
       res
         .status(404)
         .json({ message: "Required fields are Misssing", success: false });
     } else {
       let student = await StudentSchema.find({
-        firstName,
-        lastName,
-        mobile_no,
-        national_id,
-        national_id_number,
-      });
+        $or: [
+          {
+            firstName,
+          },
+          { lastName },
+          { mobile_no },
+          {
+            $and: [{ national_id }, { national_id_number }],
+          },
+        ],
+      }).select("-documents -current_address -education");
       if (student.length > 0) {
         res
           .status(200)
-          .json({ message: "User already Exists", student, success: true });
+          .json({
+            message: "Student already Exists with provided Info",
+            student,
+            success: true,
+          });
       } else {
         student = await StudentSchema.create({
           firstName,
@@ -113,11 +128,68 @@ export const AddNewStudent = async (req, res) => {
                       }
                     );
                   });
-                  res.status(200).json({
-                    message: "Student Registered Sussecfully",
-                    student,
-                    success: true,
+                  let departmentInfo = await DepartmentSchema.find({
+                    name: department,
                   });
+                  if (departmentInfo.length > 0) {
+                    let semesterInfo = await SemesterSchema.find({ semester });
+                    if (semesterInfo.length > 0) {
+                      semester = await SemesterSchema.findByIdAndUpdate(
+                        semesterInfo[0]._id,
+                        { $push: { students: student._id } }
+                      );
+                      student = await StudentSchema.findByIdAndUpdate(
+                        student._id,
+                        {
+                          department: {
+                            name: departmentInfo[0].name,
+                            id: departmentInfo[0]._id,
+                          },
+                          semester: {
+                            name: semesterInfo[0].semester,
+                            id: semesterInfo[0]._id,
+                          },
+                        }
+                      );
+                      res.status(200).json({
+                        message: "Student Registered Sussecfully",
+                        student,
+                        success: true,
+                      });
+                    } else {
+                      student = await StudentSchema.findByIdAndDelete(
+                        student._id
+                      );
+                      educationInfo.map(async (i) => {
+                        student = await EducationSchema.findByIdAndDelete(
+                          i._id
+                        );
+                      });
+                      currentAddress = await AddressSchema.findByIdAndDelete(
+                        currentAddress._id
+                      );
+                      res.status(404).json({
+                        message:
+                          "There's no Semester with This Name Kindly Create a new One",
+                        success: false,
+                      });
+                    }
+                  } else {
+                    student = await StudentSchema.findByIdAndDelete(
+                      student._id
+                    );
+                    educationInfo.map(async (i) => {
+                      student = await EducationSchema.findByIdAndDelete(i._id);
+                    });
+                    currentAddress = await AddressSchema.findByIdAndDelete(
+                      currentAddress._id
+                    );
+                    res.status(200).json({
+                      message:
+                        "Student Registration failed Due to Department not found Pls create Department",
+                      success: false,
+                    });
+                  }
                 } else {
                   student = await StudentSchema.findByIdAndDelete(student._id);
                   educationInfo.map(async (i) => {
@@ -156,7 +228,7 @@ export const AddNewStudent = async (req, res) => {
       }
     }
   } catch (error) {
-    console.log(error);
+    // console.log(error);
     ErrorHandler(req, res, error);
   }
 };

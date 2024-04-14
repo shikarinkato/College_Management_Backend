@@ -6,7 +6,7 @@ export const connectToMongo = async () => {
       dbName: "College_Management_System",
     })
     .then((res) => {
-      console.log("SuccesFully connected to Database", res.connection.host);
+      console.log("Successfully connected to Database", res.connection.host);
     })
     .catch((err) => {
       console.log("Failed to connect Database" + err);
