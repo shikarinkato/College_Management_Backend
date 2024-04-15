@@ -42,8 +42,8 @@ export const AdminOTP = async (req, res, next) => {
             port: 587,
             secure: false,
             auth: {
-              user: "ramanpratapsingh.q@gmail.com",
-              pass: "fK40LOXdS7k9qvGN",
+              user: process.env.SMTP_SERVER_AUTH,
+              pass: process.env.SMTP_SERVER_PASS,
             },
           });
 
