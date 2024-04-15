@@ -1,12 +1,11 @@
 import mongoose from "mongoose";
 
-const Student = mongoose.Schema(
+const Admin = mongoose.Schema(
   {
-    studentID: { type: String, required: true },
+    adminID: { type: String, required: true },
     firstName: { type: String, required: true },
     lastName: { type: String, required: true },
     fatherName: { type: String, required: true },
-    motherName: { type: String, required: true },
     mobile_no: { type: Number, required: true },
     email: {
       type: String,
@@ -27,12 +26,17 @@ const Student = mongoose.Schema(
     dob: { type: String, required: true },
     religion: { type: String, required: true },
     martial_status: { type: String, required: true },
-    blood_group: { type: String, required: true },
     national_id: {
       type: String,
       required: true,
-      enum: ["Adhar Card", "Pan Card", "Driving License"],
-      message: "Please of the reuired National ID",
+      enum: [
+        "Adhar Card",
+        "Pan Card",
+        "Driving License",
+        "Voter ID",
+        "Indian Passport",
+      ],
+      message: "Please provide a National ID",
     },
     national_id_number: {
       type: Number,
@@ -48,6 +52,10 @@ const Student = mongoose.Schema(
               value.toString().length <= 20
               ? true
               : false;
+          } else if (this.national_id === "Voter ID") {
+            return value.toString().length === 10 ? true : false;
+          } else if (this.national_id === "Indian Passport") {
+            return value.toString().length === 8 ? true : false;
           } else {
             return true;
           }
@@ -57,46 +65,53 @@ const Student = mongoose.Schema(
         },
       },
     },
-    addmission_date: {
+    joining_date: {
       type: String,
       required: true,
     },
     current_address: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Address",
-      default: null,
+      category: { type: String, required: true },
+      admin_id: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Admin",
+        default: null,
+      },
+      house_no: { type: Number, required: true },
+      street: { type: String, required: true },
+      city: { type: String, required: true },
+      state: { type: String, required: true },
+      postal_code: {
+        type: Number,
+        required: true,
+        minLength: 6,
+        message: "Postal code must have 6 Digits",
+      },
     },
-    education: [
-      { type: mongoose.Schema.Types.ObjectId, ref: "Education", default: null },
+    qualifications: [
+      {
+        admin_id: { type: mongoose.Schema.Types.ObjectId },
+        insitute_name: { type: String },
+        qlfc_name: { type: String },
+        completion_year: { type: Number },
+      },
     ],
-    enrollment_no: { type: Number, required: true },
     documents: {
       pic: { type: String, required: true },
       signature_img: { type: String, required: true },
-      marksheet_10th: { type: String, required: true },
-      marksheet_12th: { type: String, required: true },
-      bachelor_marksheet: { type: String, default: null },
+      resume_or_cv: { type: String, required: true },
+      bankDetails: { type: String, required: true },
     },
-    department: {
-      name: { type: String, default: null },
-      id: { type: mongoose.Schema.Types.ObjectId, ref: "Department" },
-    },
-    results: [{ semester: { type: String }, resultLink: { type: String } }],
     achievements: [
       {
         name: { type: String },
-        achieveDesc: { type: String },
+        achmtsDesc: { type: String },
         digitalLink: { type: String },
       },
     ],
-    semester: {
-      name: { type: String },
-      id: { type: mongoose.Schema.Types.ObjectId, ref: "Semester" },
-    },
     password: { type: String, required: true },
   },
   { timestamp: true }
 );
 
-const StudentSchema = mongoose.model("Student", Student);
-export default StudentSchema;
+const AdminSchema = mongoose.model("Admin", Admin);
+export default AdminSchema;

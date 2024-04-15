@@ -1,11 +1,12 @@
-import { config } from "dotenv";
-import jwt from "jsonwebtoken";
-import StudentSchema from "../../models/student/StudentSchema.js";
+import nodemailer from "nodemailer";
 import { ErrorHandler } from "../../middlewares/ErrorHandler.js";
-import AddressSchema from "../../models/student/Address.js";
-import EducationSchema from "../../models/student/Education.js";
 import DepartmentSchema from "../../models/department/Department.js";
 import SemesterSchema from "../../models/department/Semester.js";
+import AddressSchema from "../../models/student/Address.js";
+import EducationSchema from "../../models/student/Education.js";
+import StudentSchema from "../../models/student/StudentSchema.js";
+import bcryptjs from "bcryptjs";
+import otpGenerator from "otp-generator";
 
 export const AddNewStudent = async (req, res) => {
   let {
@@ -65,21 +66,24 @@ export const AddNewStudent = async (req, res) => {
         ],
       }).select("-documents -current_address -education");
       if (student.length > 0) {
-        res
-          .status(200)
-          .json({
-            message: "Student already Exists with provided Info",
-            student,
-            success: true,
-          });
+        res.status(200).json({
+          message: "Student already Exists with provided Info",
+          student,
+          success: true,
+        });
       } else {
+        let students = await StudentSchema.find();
+        let pass = await otpGenerator.generate(10);
+        let hashedPassword = await bcryptjs.hash(pass, 12);
         student = await StudentSchema.create({
+          studentID: pass,
           firstName,
           lastName,
           fatherName,
           motherName,
           mobile_no,
           email,
+          enrollment_no: students.length + 1,
           gender,
           dob,
           religion,
@@ -89,6 +93,7 @@ export const AddNewStudent = async (req, res) => {
           national_id_number,
           addmission_date,
           documents,
+          password: hashedPassword,
         });
         if (student) {
           let currentAddress = await AddressSchema.create({
@@ -151,6 +156,38 @@ export const AddNewStudent = async (req, res) => {
                           },
                         }
                       );
+
+                      const transporter = nodemailer.createTransport({
+                        host: "smtp-relay.brevo.com",
+                        port: 587,
+                        secure: false,
+                        auth: {
+                          user: "ramanpratapsingh.q@gmail.com",
+                          pass: "fK40LOXdS7k9qvGN",
+                        },
+                      });
+
+                      const info = await transporter.sendMail({
+                        from: `Raman 👻" <${process.env.SENDER_EMAIL}>`,
+                        to: email,
+                        subject: "Welcome at Dr.MPS Group Of Institutions,Agra",
+                        text: `Dear ${firstName + " " + lastName},
+
+                        Congratulations on your admission to Dr.MPS Group Of Institutions,Agra! 🎉 We're thrilled to welcome you to our community.
+                        
+                        We're excited for the journey ahead and are here to support you every step of the way. Whether you have questions, need guidance, or want to explore opportunities, our team is here to help.
+                        
+                        Welcome aboard, ${
+                          firstName + " " + lastName
+                        }! Let's make your time at Dr.MPS Group Of Institutions,Agra unforgettable!
+                        
+                        Best regards,
+                        
+                        Raman Pratp Singh
+                        Head of Department/BCA
+                        Dr.MPS Group Of Institutions,Agra `,
+                      });
+
                       res.status(200).json({
                         message: "Student Registered Sussecfully",
                         student,
@@ -234,15 +271,39 @@ export const AddNewStudent = async (req, res) => {
 };
 
 export const GetStudentProfile = async (req, res) => {
-  let { mobile_no } = req.params;
+  let {
+    firstName,
+    lastName,
+    vrfNameOrNumber,
+    national_id,
+    national_id_number,
+  } = req.body;
   try {
-    Number(mobile_no);
-    if (!mobile_no) {
+    if (!vrfNameOrNumber) {
       res
         .status(404)
         .json({ message: "Required field is Missing", success: false });
     } else {
-      let student = await StudentSchema.findOne({ mobile_no });
+      let student;
+      if (typeof vrfNameOrNumber === "number") {
+        student = await StudentSchema.findOne({
+          $or: [
+            { mobile_no: vrfNameOrNumber },
+            { enrollment_no: vrfNameOrNumber },
+            { $and: [{ national_id }, { national_id_number }] },
+          ],
+        });
+      } else {
+        student = await StudentSchema.findOne({
+          $or: [
+            {
+              studentID: vrfNameOrNumber,
+            },
+            { $and: [{ firstName }, { lastName }] },
+            { $and: [{ national_id }, { national_id_number }] },
+          ],
+        });
+      }
       if (student) {
         res.status(200).json({
           message: `Welcome Back ${student.firstName}`,
@@ -257,12 +318,11 @@ export const GetStudentProfile = async (req, res) => {
       }
     }
   } catch (error) {
-    console.log(error);
     ErrorHandler(req, res, error);
   }
 };
 
-export const GetStudents = async (req, res) => {
+export const GetAllStudents = async (req, res) => {
   try {
     let students = await StudentSchema.find();
     if (students.length > 0) {
