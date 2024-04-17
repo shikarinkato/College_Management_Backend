@@ -7,7 +7,6 @@ export const AuthHandler = async (req, res, next) => {
     if (token) {
       token = token.split(" ")[1];
       if (token) {
-        // console.log(process.env.SECRET_KEY);
         let verifiedToken = jwt.decode(token, process.env.SECRET_KEY);
         if (!verifiedToken) {
           res.status(403).json({
