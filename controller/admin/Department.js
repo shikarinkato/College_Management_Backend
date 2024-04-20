@@ -43,3 +43,4 @@ export async function createDepartment(req, res) {
     return;
   }
 }
+

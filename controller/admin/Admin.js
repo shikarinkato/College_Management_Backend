@@ -512,7 +512,7 @@ export const Login = async (req, res) => {
   }
 };
 
-function GenerateOTP() {
+export function GenerateOTP() {
   let generatedOTP = otpGntr.generate(5, {
     lowerCaseAlphabets: false,
     specialChars: false,

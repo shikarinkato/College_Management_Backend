@@ -14,11 +14,16 @@ import {
   Login,
   VerfiyAdminOTP,
 } from "../../controller/admin/Admin.js";
+import {
+  AddNewProfessor,
+  AddProfToDept,
+} from "../../controller/admin/Professor.js";
 
 let router = express.Router();
 
 // post APIs
 router.post("/add/student", AuthHandler, AddNewStudent);
+router.post("/add/professor", AuthHandler, AddNewProfessor);
 router.post("/department/add", AuthHandler, createDepartment);
 router.post("/semester/add", AuthHandler, createSemester);
 router.post("/generateOTP/signup", AdminOTP);
@@ -30,5 +35,9 @@ router.get("/get/student/:mobile_no", AuthHandler, GetStudentProfile);
 router.get("/get/allStudents", AuthHandler, GetAllStudents);
 router.get("/verifyOTP/signup", VerfiyAdminOTP);
 router.get("/login", Login);
+
+// put  APIs
+router.put("/department/add_professor", AuthHandler, AddProfToDept);
+
 
 export default router;
