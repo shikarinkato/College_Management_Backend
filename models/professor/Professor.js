@@ -127,6 +127,7 @@ const Professor = mongoose.Schema(
         digitalLink: { type: String },
       },
     ],
+    salary: { type: Number },
     password: { type: String, required: true },
     position: { type: String },
   },

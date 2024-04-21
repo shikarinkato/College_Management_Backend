@@ -5,6 +5,7 @@ import { ErrorHandler } from "../../middlewares/ErrorHandler.js";
 import AdminSchema from "../../models/admin/Admin.js";
 import ProfessorSchema from "../../models/professor/Professor.js";
 import DepartmentSchema from "../../models/department/Department.js";
+import SemesterSchema from "../../models/department/Semester.js";
 
 export const AddNewProfessor = async (req, res) => {
   let {
@@ -275,9 +276,10 @@ export const AddProfToDept = async (req, res) => {
               return;
             }
           } else {
-            res.status(400).json({
+            res.status(200).json({
               message: "Professor Already Assigned to the Department",
-              success: false,
+              ftdProf,
+              success: true,
             });
             return;
           }
@@ -292,6 +294,136 @@ export const AddProfToDept = async (req, res) => {
         res.status(400).json({
           message:
             "Department Not found. Please check Department Name or Create New One",
+          success: false,
+        });
+        return;
+      }
+    }
+  } catch (error) {
+    console.log(error);
+    ErrorHandler(req, res, error);
+  }
+};
+
+export const AssignSemToProfessor = async (req, res) => {
+  let { semName, professor_id, subject } = req.body;
+  try {
+    if (!semName || !professor_id || !subject) {
+      res.status(404).json({
+        message: "Oops! I Think We're Missing Some Imp. Info",
+        success: false,
+      });
+      return;
+    } else {
+      let prof = await ProfessorSchema.findById(professor_id);
+      if (prof) {
+        let sem = await SemesterSchema.findOne({ semester: semName });
+        if (sem) {
+          let profDeps;
+          if (prof?.departments) {
+            Promise.all(
+              prof.departments.map(async (dep) => {
+                let dept = await DepartmentSchema.findById(dep.depID);
+                return dept;
+              })
+            )
+              .then((resp) => {
+                resp.map(async (dep) => {
+                  if (dep.semesters.some((i) => i.name === semName)) {
+                    let isInclude = prof.sem_and_subs?.some(
+                      (smst) => smst.semester.name === semName
+                    );
+                    if (!isInclude) {
+                      prof = await ProfessorSchema.findByIdAndUpdate(prof._id, {
+                        $push: {
+                          sem_and_subs: {
+                            semester: { name: sem.semester, id: sem._id },
+                            subject: { name: subject },
+                          },
+                        },
+                      });
+                      res.status(201).json({
+                        message: "Semester Assigned Succesfully",
+                        assignedSem: prof.sem_and_subs,
+                        success: true,
+                      });
+                      return;
+                    } else {
+                      res.status(200).json({
+                        message: "Semester Already Assigned to Professor",
+                        assignedSem: prof.sem_and_subs,
+                        success: true,
+                      });
+                      return;
+                    }
+                  }
+                });
+              })
+              .catch((err) => {
+                throw new Error(err);
+              });
+          } else {
+            res.status(404).json({
+              message: "There's no Department Assingeed to Professor",
+              success: false,
+            });
+            return;
+          }
+        } else {
+          res.status(404).json({
+            message:
+              "There's no Semester With Specific Name. Please Check And Try Again",
+            success: false,
+          });
+          return;
+        }
+      } else {
+        res.status(400).json({
+          message: "Professor Not Found. Please register Professor First",
+          success: false,
+        });
+        return;
+      }
+    }
+  } catch (error) {
+    console.log(error);
+    ErrorHandler(req, res, error);
+  }
+};
+
+export const UpdateProfSalary = async (req, res) => {
+  let { professor_id, salary } = req.body;
+  try {
+    if (!salary || !professor_id) {
+      res.status(404).json({
+        message: "Oops! I Think We're Missing Some Imp. Info",
+        success: false,
+      });
+      return;
+    } else {
+      let prof = await ProfessorSchema.findById(professor_id);
+      if (prof) {
+        prof = await ProfessorSchema.findByIdAndUpdate(prof._id, {
+          salary,
+        });
+        if (prof) {
+          res.status(201).json({
+            message: "Succesfully Updated Your Salary",
+            salary: prof.salary,
+            success: true,
+          });
+          return;
+        } else {
+          res.status(500).json({
+            message:
+              "Sorry Currently We're Facing issue in Updating Your Salary",
+            success: false,
+          });
+          return;
+        }
+      } else {
+        res.status(400).json({
+          message: "There ain't Any Professor With this Info.",
           success: false,
         });
         return;

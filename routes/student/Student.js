@@ -1,9 +1,10 @@
 import express from "express";
-import { GetStudentProfile } from "../../controller/admin/Student.js";
-import { GetProfile } from "../../controller/student/Student.js";
+import { getProfile } from "../../controller/student/Student.js";
+import { StudentAuth } from "../../middlewares/StudentAuth.js";
 
 let router = express.Router();
 
-router.put("/getprofile", GetProfile);
+router.put("/getprofile", getProfile);
+router.put("/submit_fee", StudentAuth, getProfile);
 
 export default router;

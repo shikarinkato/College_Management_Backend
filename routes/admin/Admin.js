@@ -1,12 +1,4 @@
 import express from "express";
-import { createDepartment } from "../../controller/admin/Department.js";
-import { createSemester } from "../../controller/admin/Semester.js";
-import {
-  AddNewStudent,
-  GetAllStudents,
-  GetStudentProfile,
-} from "../../controller/admin/Student.js";
-import { AuthHandler } from "../../middlewares/AdminAuth.js";
 import {
   AdminOTP,
   admnLoginOTP,
@@ -14,10 +6,20 @@ import {
   Login,
   VerfiyAdminOTP,
 } from "../../controller/admin/Admin.js";
+import { createDepartment } from "../../controller/admin/Department.js";
 import {
   AddNewProfessor,
   AddProfToDept,
+  AssignSemToProfessor,
+  UpdateProfSalary,
 } from "../../controller/admin/Professor.js";
+import { createSemester } from "../../controller/admin/Semester.js";
+import {
+  AddNewStudent,
+  GetAllStudents,
+  GetStudentProfile,
+} from "../../controller/admin/Student.js";
+import { AuthHandler } from "../../middlewares/AdminAuth.js";
 
 let router = express.Router();
 
@@ -38,6 +40,7 @@ router.get("/login", Login);
 
 // put  APIs
 router.put("/department/add_professor", AuthHandler, AddProfToDept);
-
+router.put("/semester/add_professor", AuthHandler, AssignSemToProfessor);
+router.put("/prof_salary", AuthHandler, UpdateProfSalary);
 
 export default router;

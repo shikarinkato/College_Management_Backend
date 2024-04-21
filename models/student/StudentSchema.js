@@ -89,6 +89,19 @@ const Student = mongoose.Schema(
         digitalLink: { type: String },
       },
     ],
+    fees: [
+      {
+        semester: {
+          name: { type: String },
+          id: { type: mongoose.Schema.Types.ObjectId, ref: "Semester" },
+        },
+        fee: {
+          total_fee: { type: Number },
+          due_fee: { type: Number },
+          submited_fee: { type: Number },
+        },
+      },
+    ],
     semester: {
       name: { type: String },
       id: { type: mongoose.Schema.Types.ObjectId, ref: "Semester" },
