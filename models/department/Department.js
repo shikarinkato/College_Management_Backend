@@ -8,6 +8,15 @@ const Department = mongoose.Schema({
       id: { type: mongoose.Schema.Types.ObjectId, ref: "Semester" },
     },
   ],
+  events: [
+    {
+      evnt_name: { type: String },
+      evntID: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Event",
+      },
+    },
+  ],
 });
 
 const DepartmentSchema = mongoose.model("Department", Department);

@@ -245,50 +245,59 @@ export const AddProfToDept = async (req, res) => {
       });
       if (department) {
         let ftdProf = await ProfessorSchema.findById(professor_id);
-
-        if (ftdProf) {
-          let isDepInclude = await ftdProf?.departments.some(
-            (dep) => dep.name === department.name
-          );
-          if (!isDepInclude) {
-            let prof = await ProfessorSchema.findByIdAndUpdate(
-              { _id: ftdProf._id },
-              {
-                $push: {
-                  departments: {
-                    name: department?.name,
-                    depID: department?._id,
-                  },
-                },
-              }
+        let isHOD = ftdProf.position === "Head of Department(HOD)";
+        let isDepPrvd = ftdProf.departments.length > 0;
+        if (isHOD && isDepPrvd) {
+          res.status(400).json({
+            message:
+              "A HOD of a Department Can't have More than one Department",
+            success: false,
+          });
+        } else {
+          if (ftdProf) {
+            let isDepInclude = await ftdProf?.departments.some(
+              (dep) => dep.name === department.name
             );
-            if (prof) {
-              res.status(201).json({
-                message: "Professor Assigned to Department",
-                success: true,
-              });
-              return;
+            if (!isDepInclude) {
+              let prof = await ProfessorSchema.findByIdAndUpdate(
+                { _id: ftdProf._id },
+                {
+                  $push: {
+                    departments: {
+                      name: department?.name,
+                      depID: department?._id,
+                    },
+                  },
+                }
+              );
+              if (prof) {
+                res.status(201).json({
+                  message: "Professor Assigned to Department",
+                  success: true,
+                });
+                return;
+              } else {
+                res.status(404).json({
+                  message: "Failed to Add Professsor to Departments",
+                  success: false,
+                });
+                return;
+              }
             } else {
-              res.status(404).json({
-                message: "Failed to Add Professsor to Departments",
-                success: false,
+              res.status(200).json({
+                message: "Professor Already Assigned to the Department",
+                ftdProf,
+                success: true,
               });
               return;
             }
           } else {
-            res.status(200).json({
-              message: "Professor Already Assigned to the Department",
-              ftdProf,
-              success: true,
+            res.status(404).json({
+              message: "Professor Not Found ",
+              success: false,
             });
             return;
           }
-        } else {
-          res.status(404).json({
-            message: "Professor Not Found ",
-            success: false,
-          });
-          return;
         }
       } else {
         res.status(400).json({

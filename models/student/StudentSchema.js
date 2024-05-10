@@ -98,7 +98,7 @@ const Student = mongoose.Schema(
         fee: {
           total_fee: { type: Number },
           due_fee: { type: Number },
-          submited_fee: { type: Number },
+          submitted_fee: { type: Number },
         },
       },
     ],

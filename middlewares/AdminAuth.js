@@ -1,13 +1,13 @@
 import jwt from "jsonwebtoken";
 import { ErrorHandler } from "./ErrorHandler.js";
 
-export const AuthHandler = async (req, res, next) => {
+export const AdminAuthHandler = async (req, res, next) => {
   let token = req.headers.authorization || req.headers.Authorization;
   try {
     if (token) {
       token = token.split(" ")[1];
       if (token) {
-        let verifiedToken = jwt.decode(token, process.env.SECRET_KEY);
+        let verifiedToken = jwt.decode(token, process.env.ADMIN_SECRET_KEY);
         if (!verifiedToken) {
           res.status(403).json({
             message: "Unable To Verify ",

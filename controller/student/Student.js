@@ -19,7 +19,8 @@ export const getProfile = async (req, res) => {
         if (isMatchedPass) {
           const token = jwt.sign(
             { id: student._id },
-            process.env.STUDENT_LOGIN_SECRET_KEY
+            process.env.STUDENT_LOGIN_SECRET_KEY,
+            { expiresIn: "5d" }
           );
           if (token) {
             res.status(404).json({
@@ -56,45 +57,141 @@ export const getProfile = async (req, res) => {
   }
 };
 
-// This function is Not Completed Yet
+export const updateFee = async (req, res) => {
+  let student = req.student;
+  let { amount, semName } = req.body;
+  try {
+    if (!amount || !semName || !student) {
+      res
+        .status(404)
+        .json({ message: "Required fields are Missing", success: false });
+      return;
+    } else {
+      let sem = await SemesterSchema.findOne({
+        semester: semName,
+      });
+      if (sem) {
+        let isSemIncd = student.fees?.some((i) => i.semester.name === semName);
+        if (isSemIncd) {
+          student = await StudentSchema.findOne({
+            $and: [
+              { _id: student._id },
+              {
+                fees: {
+                  $elemMatch: {
+                    semester: { name: semName },
+                    "fee.due_fee": { $gt: 0 },
+                  },
+                },
+              },
+            ],
+          });
+          if (student) {
+            let feeIndex = student.fees.findIndex(
+              (f) => f.semester.name === semName && f.fee.due_fee > 0
+            );
+            let feeNndToSbmt;
+            let excessAmount;
+            let dueFee = student.fees[feeIndex]?.fee.due_fee;
+            let submittedFee = student.fees[feeIndex]?.fee.submitted_fee;
 
-// export const updateFee = async (req, res) => {
-//   let { student } = req.student;
-//   let { amount, semName } = req.body;
-//   try {
-//     if (!amount || !semName || !student) {
-//       res
-//         .status(404)
-//         .json({ message: "Required fields are Missing", success: false });
-//       return;
-//     } else {
-//       let sem = await SemesterSchema.findOne({
-//         semester: semName,
-//       });
-//       if (sem) {
-//         let isSemMatch = student.semester.name === semName;
-//         if (isSemMatch) {
-//           console.log(isSemMatch);
-//           // student = await StudentSchema.findOne({
-//           //   $and: [{ _id: student._id }, { studentID: student.studentID }],
-//           // });
-//         } else {
-//           res.status(400).json({
-//             message: "Please Check the Provided Semester",
-//             success: false,
-//           });
-//           return;
-//         }
-//       } else {
-//         res.status(404).json({
-//           message: "Can't Find any Semester with Provided Info.",
-//           success: false,
-//         });
-//         return;
-//       }
-//     }
-//   } catch (error) {
-//     console.log(error);
-//     ErrorHandler(req, res, error);
-//   }
-// };
+            if (dueFee > amount || dueFee === amount) {
+              feeNndToSbmt = amount;
+              excessAmount = 0;
+              student = await StudentSchema.findOneAndUpdate(
+                {
+                  $and: [
+                    { _id: student._id },
+                    {
+                      fees: {
+                        $elemMatch: {
+                          semester: { name: semName },
+                          "fee.due_fee": { $gt: 0 },
+                        },
+                      },
+                    },
+                  ],
+                },
+                {
+                  $set: {
+                    "fees.$[elem].fee.due_fee": Math.max(
+                      0,
+                      dueFee - feeNndToSbmt
+                    ),
+                    "fees.$[elem].fee.submitted_fee":
+                      submittedFee + feeNndToSbmt,
+                  },
+                },
+                { arrayFilters: [{ "elem.semester.name": semName }], new: true }
+              );
+            } else {
+              feeNndToSbmt = dueFee;
+              excessAmount = amount - dueFee;
+              student = await StudentSchema.findOneAndUpdate(
+                {
+                  $and: [
+                    { _id: student._id },
+                    {
+                      fees: {
+                        $elemMatch: {
+                          semester: { name: semName },
+                          "fee.due_fee": { $gt: 0 },
+                        },
+                      },
+                    },
+                  ],
+                },
+                {
+                  $set: {
+                    "fees.$[elem].fee.due_fee": 0,
+                    "fees.$[elem].fee.submitted_fee":
+                      submittedFee + feeNndToSbmt,
+                  },
+                },
+                { arrayFilters: [{ "elem.semester.name": semName }], new: true }
+              );
+            }
+
+            if (student) {
+              res.status(200).json({
+                message: "Fee Updated Succesfully",
+                student,
+                success: true,
+              });
+              return;
+            } else {
+              res.status(500).json({
+                message:
+                  "Failed to Submit fee. Please try again after Sometime",
+                success: false,
+              });
+              return;
+            }
+          } else {
+            res.status(400).json({
+              message: "Please Check the Provided Semester Fee Due or Not",
+              success: false,
+            });
+            return;
+          }
+        } else {
+          res.status(404).json({
+            message:
+              "Please Provide the Semester that you've Passed or Currently Attending",
+            success: false,
+          });
+          return;
+        }
+      } else {
+        res.status(404).json({
+          message: "Can't Find any Semester with Provided Info.",
+          success: false,
+        });
+        return;
+      }
+    }
+  } catch (error) {
+    console.log(error);
+    ErrorHandler(req, res, error);
+  }
+};

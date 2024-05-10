@@ -18,29 +18,31 @@ import {
   AddNewStudent,
   GetAllStudents,
   GetStudentProfile,
+  updateStudentFee,
 } from "../../controller/admin/Student.js";
-import { AuthHandler } from "../../middlewares/AdminAuth.js";
+import { AdminAuthHandler } from "../../middlewares/AdminAuth.js";
 
 let router = express.Router();
 
 // post APIs
-router.post("/add/student", AuthHandler, AddNewStudent);
-router.post("/add/professor", AuthHandler, AddNewProfessor);
-router.post("/department/add", AuthHandler, createDepartment);
-router.post("/semester/add", AuthHandler, createSemester);
+router.post("/add/student", AdminAuthHandler, AddNewStudent);
+router.post("/add/professor", AdminAuthHandler, AddNewProfessor);
+router.post("/department/add", AdminAuthHandler, createDepartment);
+router.post("/semester/add", AdminAuthHandler, createSemester);
 router.post("/generateOTP/signup", AdminOTP);
 router.post("/generateOTP/login", admnLoginOTP);
 router.post("/create/profile", CreateAdmin);
 
 // get APIs
-router.get("/get/student/:mobile_no", AuthHandler, GetStudentProfile);
-router.get("/get/allStudents", AuthHandler, GetAllStudents);
+router.get("/get/student/:mobile_no", AdminAuthHandler, GetStudentProfile);
+router.get("/get/allStudents", AdminAuthHandler, GetAllStudents);
 router.get("/verifyOTP/signup", VerfiyAdminOTP);
 router.get("/login", Login);
 
 // put  APIs
-router.put("/department/add_professor", AuthHandler, AddProfToDept);
-router.put("/semester/add_professor", AuthHandler, AssignSemToProfessor);
-router.put("/prof_salary", AuthHandler, UpdateProfSalary);
+router.put("/department/add_professor", AdminAuthHandler, AddProfToDept);
+router.put("/semester/add_professor", AdminAuthHandler, AssignSemToProfessor);
+router.put("/prof_salary", AdminAuthHandler, UpdateProfSalary);
+router.put("/student/submit_fee", AdminAuthHandler, updateStudentFee);
 
 export default router;

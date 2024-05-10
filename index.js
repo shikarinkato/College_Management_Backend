@@ -3,6 +3,9 @@ import express from "express";
 import jwt from "jsonwebtoken";
 import AdminRouter from "./routes/admin/Admin.js";
 import StudentRouter from "./routes/student/Student.js";
+import ProfessorRouter from "./routes/professor/Professor.js";
+import HODRouter from "./routes/HOD/HOD.js";
+import EventRouter from "./routes/events/Event.js";
 import OtpSchema from "./models/otp/OTP.js";
 import { ErrorHandler } from "./middlewares/ErrorHandler.js";
 import cron from "node-cron";
@@ -12,6 +15,7 @@ export const app = express();
 
 // for otp schema expiration
 cron.schedule("* * * * * *", CheckOtps);
+
 async function CheckOtps(req, res) {
   try {
     let otps = await OtpSchema.find({});
@@ -55,3 +59,6 @@ app.get("/", (req, res) => {
 
 app.use("/api/v1/admin", AdminRouter);
 app.use("/api/v1/student", StudentRouter);
+app.use("/api/v1/professor", ProfessorRouter);
+app.use("/api/v1/hod", HODRouter);
+app.use("/api/v1/events", EventRouter);

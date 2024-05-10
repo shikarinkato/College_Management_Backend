@@ -474,7 +474,7 @@ export const Login = async (req, res) => {
           } else {
             let token = await jwt.sign(
               process.env.ADMIN_AUTHTOKEN,
-              process.env.SECRET_KEY
+              process.env.ADMIN_SECRET_KEY
             );
             if (token) {
               res.status(200).json({
