@@ -1,6 +1,6 @@
 import express from "express";
 import {
-  //   BroadcastEvent,
+  BroadcastEvent,
   GetAllEvents,
   GetDepmntEvents,
   GetSemstrEvents,
@@ -16,11 +16,10 @@ router.get("/department_events", GetDepmntEvents);
 router.get("/semester_events", GetSemstrEvents);
 
 // put Requests
-
-// router.put(
-//   "/department_events/broadcast/:evntID",
-//   EventAuthHandler,
-//   BroadcastEvent
-// );
+router.put(
+  "/department_events/broadcast/:evntID",
+  EventAuthHandler,
+  BroadcastEvent
+);
 
 export default router;

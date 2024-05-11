@@ -1,9 +1,9 @@
+import nodemailer from "nodemailer";
 import { ErrorHandler } from "../../middlewares/ErrorHandler.js";
 import DepartmentSchema from "../../models/department/Department.js";
 import SemesterSchema from "../../models/department/Semester.js";
 import EventSchema from "../../models/event/Event.js";
 import StudentSchema from "../../models/student/StudentSchema.js";
-import nodemailer from "nodemailer";
 
 // for HOD of Specific Department
 export const EventPush = async (req, res) => {
@@ -23,6 +23,21 @@ export const EventPush = async (req, res) => {
         .json({ message: "Required fields are Missing", success: false });
       return;
     } else {
+      let splittedDate = event_date
+        .split("-")
+        .map((i) => Number(i))
+        .reverse();
+
+      event_date = new Date(
+        splittedDate[0],
+        splittedDate[1] - 1,
+        splittedDate[2]
+      );
+
+      event_date = new Date(event_date);
+      // console.log(event_date);
+      event_date = event_date.toISOString();
+
       let isCrctHOD = hod.departments[0].name === department;
       if (isCrctHOD) {
         let dep = await DepartmentSchema.findOne({ name: department });
@@ -79,16 +94,51 @@ export const EventPush = async (req, res) => {
                 if (evnt) {
                   dep = await DepartmentSchema.findByIdAndUpdate(dep._id, {
                     $push: {
-                      events: { evnt_name: evnt.name, evntID: evnt._id },
+                      events: { evnt_name: evnt.title, evntID: evnt._id },
                     },
                   });
                   if (dep) {
-                    res.status(201).json({
-                      message: "Event Created Succefully",
-                      success: false,
-                    });
-                    return;
+                    console.log(evnt);
+                    let sem = await SemesterSchema.findByIdAndUpdate(
+                      fndSem.id,
+                      {
+                        $push: {
+                          events: { evnt_name: evnt.title, evnt_id: evnt._id },
+                        },
+                      }
+                    );
+                    if (sem) {
+                      res.status(201).json({
+                        message: "Event Created Succefully",
+                        success: false,
+                      });
+                      return;
+                    } else {
+                      evnt = await EventSchema.findByAndDelete(evnt._id);
+                      dep = await DepartmentSchema.findByIdAndUpdate(dep._id, {
+                        $pull: {
+                          events: { evnt_name: evnt.title, evntID: evnt._id },
+                        },
+                      });
+                      sem = await SemesterSchema.findByIdAndUpdate(sem._id, {
+                        $pull: {
+                          events: { evnt_name: evnt.title, evnt_iD: evnt._id },
+                        },
+                      });
+                      res.status(500).json({
+                        message:
+                          "Sorry we can't create Event Currently Due to Can't Push events into Semester",
+                        success: false,
+                      });
+                      return;
+                    }
                   } else {
+                    evnt = await EventSchema.findByAndDelete(evnt._id);
+                    dep = await DepartmentSchema.findByIdAndUpdate(dep._id, {
+                      $pull: {
+                        events: { evnt_name: evnt.name, evntID: evnt._id },
+                      },
+                    });
                     res.status(500).json({
                       message:
                         "Sorry we can't create Event Currently Due to Can't Push events into Department",
@@ -134,10 +184,7 @@ export const EventPush = async (req, res) => {
   }
 };
 
-
-// Not completed Yet
-
-/* 
+// Not Implemented Properly Yet
 export const BroadcastEvent = async (req, res) => {
   let hod = req.hod;
   let { evntID } = req.params;
@@ -155,40 +202,59 @@ export const BroadcastEvent = async (req, res) => {
         if (isCrctHOD) {
           let sem = await SemesterSchema.findById(evnt.semester?.semID);
           if (sem) {
-            let students = [];
-            Promise.all(
-              sem.students.map(async (stud) => {
-                let student = await StudentSchema.findById(stud);
-                if (student) {
-                  console.log(student.email);
-                  students.push(student);
-                  return BroadcastMessage(
-                    student.email,
-                    evnt.title,
-                    evnt.description,
-                    `<div>${evnt.description}</div>`
-                  );
-                }
-                return students;
-              })
-            )
-              .then((resp) => {
-                console.log(resp);
-                res.status(201).json({
-                  message: "Message Sent To Everyone",
-                  success: true,
-                });
-                return;
-              })
-              .catch((err) => {
-                // console.log(err);
-                res.status(500).json({
-                  message:
-                    "Currently we're having issue in Sending Messages Everyone",
-                  success: false,
-                });
-                return;
+            if (evnt.isBroadcasted === true) {
+              res.status(400).json({
+                message: "Message already Sent To Everyone",
+                success: false,
               });
+            } else {
+              let students = [];
+              Promise.all(
+                sem.students.map(async (stud) => {
+                  let student = await StudentSchema.findById(stud);
+                  if (student) {
+                    let msg = await MessageMail(
+                      student.email,
+                      evnt.title,
+                      evnt.description,
+                      `<div>${evnt.description}</div>`
+                    );
+                    if (msg.accepted.length > 0) {
+                      students.push(student._id);
+                    }
+                  }
+                  return students;
+                })
+              )
+                .then(async (resp) => {
+                  evnt = await EventSchema.findByIdAndUpdate(evnt._id, {
+                    isBroadcasted: true,
+                  });
+                  if (evnt) {
+                    res.status(201).json({
+                      message: "Message Sent To Everyone",
+                      success: true,
+                    });
+                    return;
+                  } else {
+                    res.status(500).json({
+                      message: "Failed To Sent Message Everyone",
+                      success: true,
+                    });
+                    return;
+                  }
+                })
+                .catch((err) => {
+                  // console.log(err);
+                  res.status(500).json({
+                    message:
+                      "Currently we're having issue in Sending Messages Everyone",
+                    reason: err.message,
+                    success: false,
+                  });
+                  return;
+                });
+            }
           } else {
             res.status(400).json({
               message: "Unable to find Any Semester with Provided ID",
@@ -217,8 +283,7 @@ export const BroadcastEvent = async (req, res) => {
   }
 };
 
-
-const BroadcastMessage = async (rcvr_email, title, text_body, html_body) => {
+const MessageMail = async (rcvr_email, title, text_body, html_body) => {
   try {
     if (!rcvr_email || !title || !text_body || !html_body) {
       return res.status(404).json({
@@ -226,7 +291,6 @@ const BroadcastMessage = async (rcvr_email, title, text_body, html_body) => {
         success: false,
       });
     } else {
-      console.log(rcvr_email, html_body);
       const transporter = nodemailer.createTransport({
         host: "smtp-relay.brevo.com",
         port: 587,
@@ -243,12 +307,12 @@ const BroadcastMessage = async (rcvr_email, title, text_body, html_body) => {
         text: text_body,
         html: html_body,
       });
+      return info;
     }
   } catch (error) {
     return error;
   }
 };
-*/
 
 // for Admin
 export const GetAllEvents = async (req, res) => {
@@ -285,23 +349,31 @@ export const GetDepmntEvents = async (req, res) => {
         success: false,
       });
     } else {
-      let events = await EventSchema.find({
-        "department.name": depName,
-      });
-
-      if (events.length > 0) {
-        res.status(200).json({
-          message: `Events of ${depName} Fetched Succesfully`,
-          success: true,
-          events,
+      let dep = await DepartmentSchema.findOne({ name: depName });
+      if (dep) {
+        let events = await EventSchema.find({
+          "department.name": depName,
         });
-        return;
+
+        if (events.length > 0) {
+          res.status(200).json({
+            message: `Events of ${depName} Fetched Succesfully`,
+            success: true,
+            events,
+          });
+          return;
+        } else {
+          res.status(404).json({
+            message: `0 Events Found for Department ${depName}`,
+            success: false,
+          });
+          return;
+        }
       } else {
-        res.status(404).json({
-          message: "0 Events Found",
+        res.status(400).json({
+          message: "There's no Department With This Name",
           success: false,
         });
-        return;
       }
     }
   } catch (error) {
@@ -319,23 +391,31 @@ export const GetSemstrEvents = async (req, res) => {
         success: false,
       });
     } else {
-      let events = await EventSchema.find({
-        "semester.name": semName,
-      });
-
-      if (events.length > 0) {
-        res.status(200).json({
-          message: `Events of ${semName} Semester Fetched Succesfully`,
-          success: true,
-          events,
+      let sem = await SemesterSchema.findOne({ semester: semName });
+      if (sem) {
+        let events = await EventSchema.find({
+          "semester.name": semName,
         });
-        return;
+
+        if (events.length > 0) {
+          res.status(200).json({
+            message: `Events of ${semName} Semester Fetched Succesfully`,
+            success: true,
+            events,
+          });
+          return;
+        } else {
+          res.status(404).json({
+            message: `0 Events Found for ${semName}`,
+            success: false,
+          });
+          return;
+        }
       } else {
         res.status(404).json({
-          message: "0 Events Found",
+          message: "Can't find any Semester With this Name",
           success: false,
         });
-        return;
       }
     }
   } catch (error) {

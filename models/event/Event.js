@@ -21,7 +21,7 @@ const Event = mongoose.Schema(
       semID: { type: mongoose.Schema.Types.ObjectId, ref: "Semester" },
     },
     event_date: {
-      type: String,
+      type: Date,
     },
     isBroadcasted: { type: Boolean, default: false },
   },

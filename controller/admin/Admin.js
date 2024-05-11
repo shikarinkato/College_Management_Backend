@@ -15,70 +15,79 @@ export const AdminOTP = async (req, res, next) => {
         .json({ message: "Required fields are Missing", success: false });
       return;
     } else {
-      let generatedOTP = GenerateOTP();
+      let admin = await AdminSchema.findOne({ email });
 
-      if (generatedOTP && email) {
-        let otp = await OtpSchema.findOne({
-          $and: [{ otp: generatedOTP }, { email }],
+      if (admin) {
+        res.status(401).json({
+          message: "Admin already Exist with This Email. Please Login Again",
+          success: false,
         });
+      } else {
+        let generatedOTP = GenerateOTP();
 
-        while (otp) {
-          generatedOTP = GenerateOTP();
-          otp = await OtpSchema.findOne({
+        if (generatedOTP && email) {
+          let otp = await OtpSchema.findOne({
             $and: [{ otp: generatedOTP }, { email }],
           });
-        }
 
-        let addTime = 60 * 1000;
-        let expirationTime = Date.now() + addTime;
-        otp = await OtpSchema.create({
-          otp: generatedOTP,
-          email,
-          expirationTime,
-        });
+          while (otp) {
+            generatedOTP = GenerateOTP();
+            otp = await OtpSchema.findOne({
+              $and: [{ otp: generatedOTP }, { email }],
+            });
+          }
 
-        if (otp) {
-          const transporter = nodemailer.createTransport({
-            host: "smtp-relay.brevo.com",
-            port: 587,
-            secure: false,
-            auth: {
-              user: process.env.SMTP_SERVER_AUTH,
-              pass: process.env.SMTP_SERVER_PASS,
-            },
+          let addTime = 60 * 1000;
+          let expirationTime = Date.now() + addTime;
+          otp = await OtpSchema.create({
+            otp: generatedOTP,
+            email,
+            expirationTime,
           });
 
-          const info = await transporter.sendMail({
-            from: `Dr. MPS Group Of Instituitions 👻" <${process.env.SENDER_EMAIL}>`,
-            to: email,
-            subject: "OTP email to verify your Signup ",
-            text: `This otp is to verify your email from \n Dr.MPS Group Of Intituitions, Agra\n
+          if (otp) {
+            const transporter = nodemailer.createTransport({
+              host: "smtp-relay.brevo.com",
+              port: 587,
+              secure: false,
+              auth: {
+                user: process.env.SMTP_SERVER_AUTH,
+                pass: process.env.SMTP_SERVER_PASS,
+              },
+            });
+
+            const info = await transporter.sendMail({
+              from: `Dr. MPS Group Of Instituitions 👻" <${process.env.SENDER_EMAIL}>`,
+              to: email,
+              subject: "OTP email to verify your Signup ",
+              text: `This otp is to verify your email from \n Dr.MPS Group Of Intituitions, Agra\n
                    Your Otp is: ${generatedOTP} \n Expires in 1 Minute`,
-            html: `<div>
+              html: `<div>
                      <p>This otp is to verify your email from \n
                       Dr.MPS Group Of Intituitions, Agra</p>
                       <p>
                       Your Otp is: ${generatedOTP} \n Expires in 1 Minute
                       </p>
             </div>`,
-          });
-          if (info) {
-            res.status(201).json({
-              message: "OTP Send Successfully Kindly Check your email",
-              success: true,
+            });
+            if (info) {
+              res.status(201).json({
+                message: "OTP Send Successfully Kindly Check your email",
+                success: true,
+              });
+              return;
+            }
+          } else {
+            res.status(400).json({
+              message: "Pls Re-generate OTP",
+              success: false,
             });
             return;
           }
         } else {
-          res.status(400).json({
-            message: "Pls Re-generate OTP",
-            success: false,
-          });
+          res.status(500).json({ message: "Failed send OTP", success: false });
           return;
         }
-      } else {
-        res.status(500).json({ message: "Failed send OTP", success: false });
-        return;
       }
     }
   } catch (error) {
@@ -326,101 +335,100 @@ export const CreateAdmin = async (req, res) => {
 };
 
 export const admnLoginOTP = async (req, res) => {
-  let { password, emailOrMobileNumber } = req.body;
+  let { emailOrMobileNumber } = req.body;
   try {
-    if (!password || !emailOrMobileNumber) {
+    if (!emailOrMobileNumber) {
       res.status(404).json({
         message: "Oops! Looks like we're missing some crucial info. Any ideas?",
         success: false,
       });
       return;
     } else {
-      let adminAcnt = await AdminSchema.findOne({
-        $or: [
-          { email: emailOrMobileNumber },
-          { mobile_no: emailOrMobileNumber },
-        ],
-      });
+      let adminAcnt;
 
+      if (typeof emailOrMobileNumber === "string") {
+        adminAcnt = await AdminSchema.findOne({
+          email: emailOrMobileNumber,
+        });
+      } else if (typeof emailOrMobileNumber === "number") {
+        adminAcnt = await AdminSchema.findOne({
+          mobile_no: emailOrMobileNumber,
+        });
+      } else {
+        res.status(400).json({
+          message: "Please Provide an Valid type of ID for Login",
+          success: false,
+        });
+        return;
+      }
       if (adminAcnt) {
-        let isMatchedPass = await Bcryptjs.compare(
-          password,
-          adminAcnt.password
-        );
-        if (isMatchedPass) {
-          let generatedOTP = GenerateOTP();
-          if (generatedOTP) {
-            let otp = await OtpSchema.findOne({
-              $and: [{ otp: generatedOTP }, { email: adminAcnt.email }],
+        let generatedOTP = GenerateOTP();
+        if (generatedOTP) {
+          let otp = await OtpSchema.findOne({
+            $and: [{ otp: generatedOTP }, { email: adminAcnt.email }],
+          });
+
+          while (otp) {
+            generatedOTP = GenerateOTP();
+            otp = await OtpSchema.findOne({
+              $and: [{ otp: generatedOTP }, { email }],
+            });
+          }
+
+          let addTime = 60 * 1000;
+          let expirationTime = Date.now() + addTime;
+          otp = await OtpSchema.create({
+            otp: generatedOTP,
+            email: adminAcnt.email,
+            expirationTime,
+          });
+          if (otp) {
+            const transporter = nodemailer.createTransport({
+              host: "smtp-relay.brevo.com",
+              port: 587,
+              secure: false,
+              auth: {
+                user: process.env.SMTP_SERVER_AUTH,
+                pass: process.env.SMTP_SERVER_PASS,
+              },
             });
 
-            while (otp) {
-              generatedOTP = GenerateOTP();
-              otp = await OtpSchema.findOne({
-                $and: [{ otp: generatedOTP }, { email }],
-              });
-            }
-
-            let addTime = 60 * 1000;
-            let expirationTime = Date.now() + addTime;
-            otp = await OtpSchema.create({
-              otp: generatedOTP,
-              email: adminAcnt.email,
-              expirationTime,
-            });
-            if (otp) {
-              const transporter = nodemailer.createTransport({
-                host: "smtp-relay.brevo.com",
-                port: 587,
-                secure: false,
-                auth: {
-                  user: process.env.SMTP_SERVER_AUTH,
-                  pass: process.env.SMTP_SERVER_PASS,
-                },
-              });
-
-              const info = await transporter.sendMail({
-                from: `Dr. MPS Group Of Instituitions 👻" <${process.env.SENDER_EMAIL}>`,
-                to: adminAcnt.email,
-                subject: "Verify login ",
-                text: `Kindly Enter This OTP to login \n 
+            const info = await transporter.sendMail({
+              from: `Dr. MPS Group Of Instituitions 👻" <${process.env.SENDER_EMAIL}>`,
+              to: adminAcnt.email,
+              subject: "Verify login ",
+              text: `Kindly Enter This OTP to login \n 
                        Your Otp is: ${generatedOTP} \n 
                        Expires in 1 Minute.
                                 Regards
                                    Dr.MPS Group Of Intituitions
                                    Agra`,
-                html: `<div>
+              html: `<div>
                      <p>Kindly Enter This OTP to login</p>
                       <p>Your Otp is: ${generatedOTP} \n Expires in 1 Minute. </p>
                       <p>Dr. MPS Group of Institutions, Agra</p>
                     </div>`,
-              });
-              if (info) {
-                res.status(401).json({
-                  message: "OTP Send Successfully ",
-                  success: true,
-                });
-              } else {
-                res.status(400).json({
-                  message: "Failed! to Send Mail. Please Retry",
-                  success: false,
-                });
-              }
-            } else {
+            });
+            if (info) {
               res.status(401).json({
-                message: "Can't save OTP ",
+                message: "OTP Send Successfully for Admin Login",
+                success: true,
+              });
+            } else {
+              res.status(400).json({
+                message: "Failed! to Send Mail. Please Retry",
                 success: false,
               });
             }
           } else {
-            res.status(400).json({
-              message: "Failed to Generate OTP ",
+            res.status(401).json({
+              message: "Can't save OTP ",
               success: false,
             });
           }
         } else {
-          res.status(401).json({
-            message: "Invalid Credentials ",
+          res.status(400).json({
+            message: "Failed to Generate OTP ",
             success: false,
           });
         }
@@ -473,9 +481,11 @@ export const Login = async (req, res) => {
             return;
           } else {
             let token = await jwt.sign(
-              process.env.ADMIN_AUTHTOKEN,
-              process.env.ADMIN_SECRET_KEY
+              { adminToken: process.env.ADMIN_AUTHTOKEN },
+              process.env.ADMIN_SECRET_KEY,
+              { expiresIn: "12h" }
             );
+
             if (token) {
               res.status(200).json({
                 message: `Logged In Succesfully as Mr. ${adminAcnt.firstName}`,
@@ -507,7 +517,7 @@ export const Login = async (req, res) => {
       }
     }
   } catch (error) {
-    // console.log(error);
+    console.log(error);
     ErrorHandler(req, res, error);
   }
 };
