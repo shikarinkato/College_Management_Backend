@@ -478,6 +478,7 @@ export const updateStudentFee = async (req, res) => {
 };
 
 export const GetAllStudents = async (req, res) => {
+
   try {
     let students = await StudentSchema.find();
     if (students.length > 0) {

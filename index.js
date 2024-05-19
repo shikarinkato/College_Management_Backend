@@ -9,49 +9,40 @@ import EventRouter from "./routes/events/Event.js";
 import OtpSchema from "./models/otp/OTP.js";
 import { ErrorHandler } from "./middlewares/ErrorHandler.js";
 import cron from "node-cron";
+import limiter from "./middlewares/RateLimiter.js";
 
 config({ path: "./db/config.env" });
 export const app = express();
+
+app.use(limiter);
+app.use(express.json());
 
 // for otp schema expiration
 cron.schedule("* * * * * *", CheckOtps);
 
 async function CheckOtps(req, res) {
   try {
-    let otps = await OtpSchema.find({});
-    if (otps.length > 0) {
-      let currentTime = Date.now();
-      let dltOTPs = Promise.all(
-        otps.map(async (otp) => {
-          if (currentTime > otp.expirationTime) {
-            return (otp = await OtpSchema.findOneAndDelete({ otp: otp.otp }));
-          } else {
-            return null;
-          }
-        })
-      );
+    let currentTime = Date.now();
 
-      dltOTPs
-        .then((resp) => {
-          if (resp[0] !== null) {
-            console.log("Done! Removed expired OTPs", resp.otp);
-          }
-          return;
-        })
-        .catch((err) => {
-          throw new Error(err);
-        });
+    let otps = await OtpSchema.find({ expirationTime: { $lt: currentTime } });
+
+    if (otps.length > 0) {
+      let dltOTPs = await OtpSchema.deleteMany({
+        expirationTime: { $lt: currentTime },
+      });
+      console.log(dltOTPs);
+      if (dltOTPs.deletedCount > 0) {
+        console.log("Done! Expired OTPs Deleted Successfully");
+      } else {
+        console.log("Failed to Delete Expired OTPs");
+      }
     } else {
-      // console.log("There's no OTPs left ", otps.length);
       return;
     }
   } catch (error) {
-    console.log(error);
     ErrorHandler(req, res, error);
   }
 }
-
-app.use(express.json());
 
 app.get("/", (req, res) => {
   res.send("Hii lavdya");

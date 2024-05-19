@@ -1,10 +1,10 @@
+import Bcryptjs from "bcryptjs";
+import jwt from "jsonwebtoken";
 import nodemailer from "nodemailer";
 import otpGntr from "otp-generator";
 import { ErrorHandler } from "../../middlewares/ErrorHandler.js";
-import OtpSchema from "../../models/otp/OTP.js";
 import AdminSchema from "../../models/admin/Admin.js";
-import Bcryptjs from "bcryptjs";
-import jwt from "jsonwebtoken";
+import OtpSchema from "../../models/otp/OTP.js";
 
 export const AdminOTP = async (req, res, next) => {
   let { email } = req.body;
@@ -23,69 +23,46 @@ export const AdminOTP = async (req, res, next) => {
           success: false,
         });
       } else {
-        let generatedOTP = GenerateOTP();
+        let generatedOTP = await GenerateOTP(5, email);
 
         if (generatedOTP && email) {
-          let otp = await OtpSchema.findOne({
-            $and: [{ otp: generatedOTP }, { email }],
+          const transporter = nodemailer.createTransport({
+            host: "smtp-relay.brevo.com",
+            port: 587,
+            secure: false,
+            auth: {
+              user: process.env.SMTP_SERVER_AUTH,
+              pass: process.env.SMTP_SERVER_PASS,
+            },
           });
 
-          while (otp) {
-            generatedOTP = GenerateOTP();
-            otp = await OtpSchema.findOne({
-              $and: [{ otp: generatedOTP }, { email }],
-            });
-          }
-
-          let addTime = 60 * 1000;
-          let expirationTime = Date.now() + addTime;
-          otp = await OtpSchema.create({
-            otp: generatedOTP,
-            email,
-            expirationTime,
-          });
-
-          if (otp) {
-            const transporter = nodemailer.createTransport({
-              host: "smtp-relay.brevo.com",
-              port: 587,
-              secure: false,
-              auth: {
-                user: process.env.SMTP_SERVER_AUTH,
-                pass: process.env.SMTP_SERVER_PASS,
-              },
-            });
-
-            const info = await transporter.sendMail({
-              from: `Dr. MPS Group Of Instituitions 👻" <${process.env.SENDER_EMAIL}>`,
-              to: email,
-              subject: "OTP email to verify your Signup ",
-              text: `This otp is to verify your email from \n Dr.MPS Group Of Intituitions, Agra\n
+          const info = await transporter.sendMail({
+            from: `Dr. MPS Group Of Instituitions 👻" <${process.env.SENDER_EMAIL}>`,
+            to: email,
+            subject: "OTP email to verify your Signup ",
+            text: `This otp is to verify your email from \n Dr.MPS Group Of Intituitions, Agra\n
                    Your Otp is: ${generatedOTP} \n Expires in 1 Minute`,
-              html: `<div>
+            html: `<div>
                      <p>This otp is to verify your email from \n
                       Dr.MPS Group Of Intituitions, Agra</p>
                       <p>
                       Your Otp is: ${generatedOTP} \n Expires in 1 Minute
                       </p>
             </div>`,
-            });
-            if (info) {
-              res.status(201).json({
-                message: "OTP Send Successfully Kindly Check your email",
-                success: true,
-              });
-              return;
-            }
-          } else {
-            res.status(400).json({
-              message: "Pls Re-generate OTP",
-              success: false,
+          });
+
+          if (info) {
+            res.status(201).json({
+              message: "OTP Send Successfully Kindly Check your email",
+              success: true,
             });
             return;
           }
         } else {
-          res.status(500).json({ message: "Failed send OTP", success: false });
+          res.status(500).json({
+            message: "Failed send OTP .Please Re-generate it",
+            success: false,
+          });
           return;
         }
       }
@@ -278,8 +255,10 @@ export const CreateAdmin = async (req, res) => {
                            any questions, please don't hesitate to reach out. Looking\n
                            forward to working together!\n
                     
-                           This your AdminID:- ${adminID}. It'll be used as Password when ever <br>
-                           you try to  login
+                           This your AdminID:- ${adminID}. It'll be used as Temporary Password when ever <br>
+                           you try to  login.
+
+                           We recommend you to Create a New Password for Security Concerns.
 
 
                     Best regards,
@@ -294,8 +273,13 @@ export const CreateAdmin = async (req, res) => {
                        have any questions, please don't hesitate to reach out. \n
                        Looking forward to working together!
                     </p>
-                    <p> This your AdminID:- ${adminID}. It'll be used as Password when ever <br>
-                        you try to  login </p>
+                    <p> This your AdminID:- ${adminID}. It'll be used as Temporary Password when ever <br>
+                        you try to  login. 
+                    </p>
+                    <br>
+                    <p>
+                        We recommend you to Create a New Password for Security Concerns.
+                    </p>
                     <br>
                     <p>Best regards,<br>
                        Dr. MPS Group Instituitions, Agra</p>
@@ -335,9 +319,9 @@ export const CreateAdmin = async (req, res) => {
 };
 
 export const admnLoginOTP = async (req, res) => {
-  let { emailOrMobileNumber } = req.body;
+  let { emailOrMobileNumber, password } = req.body;
   try {
-    if (!emailOrMobileNumber) {
+    if (!emailOrMobileNumber || !password) {
       res.status(404).json({
         message: "Oops! Looks like we're missing some crucial info. Any ideas?",
         success: false,
@@ -362,27 +346,13 @@ export const admnLoginOTP = async (req, res) => {
         return;
       }
       if (adminAcnt) {
-        let generatedOTP = GenerateOTP();
-        if (generatedOTP) {
-          let otp = await OtpSchema.findOne({
-            $and: [{ otp: generatedOTP }, { email: adminAcnt.email }],
-          });
-
-          while (otp) {
-            generatedOTP = GenerateOTP();
-            otp = await OtpSchema.findOne({
-              $and: [{ otp: generatedOTP }, { email }],
-            });
-          }
-
-          let addTime = 60 * 1000;
-          let expirationTime = Date.now() + addTime;
-          otp = await OtpSchema.create({
-            otp: generatedOTP,
-            email: adminAcnt.email,
-            expirationTime,
-          });
-          if (otp) {
+        let isMatchedPass = await Bcryptjs.compare(
+          password,
+          adminAcnt.password
+        );
+        if (isMatchedPass) {
+          let generatedOTP = await GenerateOTP(5, adminAcnt.email);
+          if (generatedOTP) {
             const transporter = nodemailer.createTransport({
               host: "smtp-relay.brevo.com",
               port: 587,
@@ -421,16 +391,17 @@ export const admnLoginOTP = async (req, res) => {
               });
             }
           } else {
-            res.status(401).json({
-              message: "Can't save OTP ",
+            res.status(400).json({
+              message: "Failed to Generate OTP ",
               success: false,
             });
           }
         } else {
-          res.status(400).json({
-            message: "Failed to Generate OTP ",
+          res.status(401).json({
+            message: "Invalid Credentials",
             success: false,
           });
+          return;
         }
       } else {
         res.status(400).json({
@@ -447,9 +418,9 @@ export const admnLoginOTP = async (req, res) => {
 };
 
 export const Login = async (req, res) => {
-  let { otp, password, emailOrMobileNumber } = req.query;
+  let { otp, emailOrMobileNumber } = req.query;
   try {
-    if (!otp || !password || !emailOrMobileNumber) {
+    if (!otp || !emailOrMobileNumber) {
       res.status(404).json({
         message: "Oops! Looks like we're missing some crucial info. Any ideas?",
         success: false,
@@ -480,8 +451,11 @@ export const Login = async (req, res) => {
             });
             return;
           } else {
-            let token = await jwt.sign(
-              { adminToken: process.env.ADMIN_AUTHTOKEN },
+            let token = jwt.sign(
+              {
+                adminToken: process.env.ADMIN_AUTHTOKEN,
+                admin_id: adminAcnt._id,
+              },
               process.env.ADMIN_SECRET_KEY,
               { expiresIn: "12h" }
             );
@@ -522,11 +496,388 @@ export const Login = async (req, res) => {
   }
 };
 
-export function GenerateOTP() {
-  let generatedOTP = otpGntr.generate(5, {
+export const UpdateAdminProfile = async (req, res) => {
+  let {
+    firstName,
+    lastName,
+    fatherName,
+    gender,
+    dob,
+    religion,
+    martial_status,
+    national_id,
+    national_id_number,
+    joining_date,
+    current_address,
+    documents,
+    qualifications,
+    achievements,
+  } = req.body;
+  let { mobileNo } = req.params;
+  try {
+    if (
+      !firstName ||
+      !lastName ||
+      !fatherName ||
+      !gender ||
+      !dob ||
+      !religion ||
+      !martial_status ||
+      !national_id ||
+      !national_id_number ||
+      !joining_date ||
+      !current_address ||
+      !documents ||
+      !qualifications ||
+      !achievements ||
+      !mobileNo
+    ) {
+      res.status(400).json({
+        message: "OOP's I think we're Something Important Info.",
+        success: false,
+      });
+      return;
+    } else {
+      let admin = await AdminSchema.findOne({ mobile_no: mobileNo });
+      if (admin) {
+        let updatedAdmin = await AdminSchema.findByIdAndUpdate(
+          admin._id,
+          {
+            firstName,
+            lastName,
+            fatherName,
+            gender,
+            dob,
+            religion,
+            martial_status,
+            national_id,
+            national_id_number,
+            joining_date,
+            current_address,
+            documents,
+            qualifications,
+            achievements,
+          },
+          { new: true }
+        );
+        if (updatedAdmin) {
+          res.status(201).json({
+            message: "Admin Profile Updated Succesfully",
+            success: true,
+          });
+          return;
+        } else {
+          res.status(500).json({
+            message: "Failed to Update Admin Profile",
+            success: false,
+          });
+          return;
+        }
+      } else {
+        res.status(401).json({
+          message: "Unable To find Admin With Provided Info",
+          success: false,
+        });
+        return;
+      }
+    }
+  } catch (error) {
+    console.log(error);
+    ErrorHandler(req, res, error);
+  }
+};
+
+export const UpdateAdminPassword = async (req, res) => {
+  let { oldPass, newPass } = req.body;
+  let admin = req.admin;
+  try {
+    if (!oldPass || !newPass || !admin) {
+      res.status(400).json({
+        message: "Crucial Info. is Missing 😑",
+        success: false,
+      });
+      return;
+    } else {
+      let isMatchedPass = Bcryptjs.compare(oldPass, admin.password);
+      if (isMatchedPass) {
+        if (admin) {
+          let hashedPass = await Bcryptjs.hash(newPass, 12);
+          if (hashedPass) {
+            let updatedAdmin = await AdminSchema.findByIdAndUpdate(
+              admin._id,
+              {
+                password: hashedPass,
+              },
+              { new: true }
+            );
+            if (updatedAdmin) {
+              let sentEMail = MailSender(
+                admin.email,
+                "Admin Password Updated Succefully",
+                `Dear  ${admin.firstName + " " + admin.lastName}
+
+                    We wanted to inform you that your account password has been successfully updated. If you did not initiate this change, please contact our support team immediately.
+                    
+                    For security reasons, please ensure that your new password is strong and unique.
+                    
+                    Best regards,
+                
+                    DR.MPS Group Of Institutions 
+                    Memorial College Of Business Studies,
+                    Agra, 
+                    Uttar Pradesh
+                `,
+                `<h5>Dear  ${admin.firstName + " " + admin.lastName}</h5>
+
+                   <p>We wanted to inform you that your account password has been successfully updated. If you 
+                      did not initiate this change, please contact our support team immediately.</p>
+                
+                   <p>For security reasons, please ensure that your new password is strong and unique.</p>
+                
+                   <p>Best regards,</p>
+            
+                  <p>DR.MPS Group Of Institutions</p>
+                  <p>Memorial College Of Business Studies,</p>
+                  <p>Agra,</p>
+                  <p>Uttar Pradesh</p>
+                `
+              );
+              if (sentEMail) {
+                res.status(201).json({
+                  message: "New Pass Updated Succefully, Kindly Login Again",
+                  success: true,
+                });
+                return;
+              } else {
+                hashedPass = await Bcryptjs.hash(admin.adminID);
+                updatedAdmin = await AdminSchema.findByIdAndUpdate(
+                  admin._id,
+                  {
+                    password: hashedPass,
+                  },
+                  { new: true }
+                );
+                res.status(500).json({
+                  message: "Failed To Send New Password Updation E-mail",
+                  success: false,
+                });
+                return;
+              }
+            } else {
+              hashedPass = await Bcryptjs.hash(admin.adminID);
+              updatedAdmin = await AdminSchema.findByIdAndUpdate(
+                admin._id,
+                {
+                  password: hashedPass,
+                },
+                { new: true }
+              );
+              res.status(500).json({
+                message: "Sorry we're getting issue in Updating Your New Pass",
+                success: false,
+              });
+              return;
+            }
+          } else {
+            res.status(500).json({
+              message:
+                "Sorry currently we're having isssue in Creating Your New Pass",
+              success: false,
+            });
+          }
+        } else {
+          res.status(404).json({
+            message: "Can't find Admin Account You Have Provided",
+            success: false,
+          });
+          return;
+        }
+      } else {
+        res.status(400).json({
+          message: "Old Password is incorrect ",
+          success: false,
+        });
+      }
+    }
+  } catch (error) {
+    console.log(error);
+    ErrorHandler(req, res, error);
+  }
+};
+
+export const admnLgnInfUpdtnOTP = async (req, res) => {
+  let { email } = req.body;
+  let admin = req.admin;
+  try {
+    if (!email) {
+      res.status(400).json({
+        message: "Crucial Info. is Missing 😑",
+        success: false,
+      });
+      return;
+    } else {
+      let generatedOTP = await GenerateOTP(5, admin.email);
+      if (generatedOTP) {
+        let sentEmail = await MailSender(
+          admin.email,
+          "OTP To Verify Updation Requested",
+          `Dear Admin,
+
+          You have requested to update your account information. Your OTP for verification is: ${generatedOTP} . Please use this OTP to complete the verification process.
+      
+          Best regards,
+          DR.MPS Group Of Institutions 
+          Memorial College Of Business Studies,
+          Agra, 
+          Uttar Pradesh`,
+          `<h5>Dear Admin,</h5>
+
+            <p>You have requested to update your account information. Your OTP for verification is: ${generatedOTP}      
+               Please use this OTP to complete the verification process.
+               </p>
+    
+            <p>Best regards,</p>
+
+            <p>DR.MPS Group Of Institutions </p>
+            <p>Memorial College Of Business Studies,</p>
+            <p>Agra, </p>
+            <p>Uttar Pradesh</p>
+          `
+        );
+        if (sentEmail) {
+          res.status(200).json({
+            message: "OTP sent Successfully",
+            success: true,
+          });
+          return;
+        } else {
+          res.status(500).json({
+            message: "Failed to send OTP. Please try again later.",
+            success: false,
+          });
+          return;
+        }
+      } else {
+        res.status(500).json({
+          message: "Failed to generate OTP. Please try again later.",
+          success: false,
+        });
+        return;
+      }
+    }
+  } catch (error) {
+    console.log(error);
+    ErrorHandler(error);
+  }
+};
+
+export const updateAdminLoginInfo = async (req, res) => {
+  let { email, mobile_no, otp } = req.body;
+  let admin = req.admin;
+  try {
+    if (!email || !mobile_no || !otp) {
+      res
+        .status(404)
+        .json({ message: "Required fields are Missing", success: false });
+      return;
+    } else {
+      otp = +otp;
+      let currentTime = Date.now();
+      let ftdOTP = await OtpSchema.findOne({
+        $and: [{ email }, { otp }, { expirationTime: { $gt: currentTime } }],
+      });
+      if (ftdOTP) {
+        let updatedAdmin = await AdminSchema.findByIdAndUpdate(admin._id, {
+          email,
+          mobile_no,
+        });
+
+        if (updatedAdmin) {
+          res.status(201).json({
+            message: "Info. Updated Successfully",
+            success: true,
+          });
+          return;
+        } else {
+          updatedAdmin = await AdminSchema.findByIdAndUpdate(admin._id, {
+            email: admin.email,
+            mobile_no: admin.mobile_no,
+          });
+          res.status(500).json({
+            message: "Sorry Currently we can't updated Your Info.",
+            success: false,
+          });
+          return;
+          F;
+        }
+      } else {
+        res
+          .status(400)
+          .json({ message: "Invalid! OTP or May be Expired", success: false });
+        return;
+      }
+    }
+  } catch (error) {
+    console.log(error);
+    ErrorHandler(req, res, error);
+  }
+};
+
+export async function GenerateOTP(length, email) {
+  let generatedOTP = otpGntr.generate(length, {
     lowerCaseAlphabets: false,
     specialChars: false,
     upperCaseAlphabets: false,
   });
+
+  let otp = await OtpSchema.findOne({
+    $and: [{ otp: generatedOTP }, { email }],
+  });
+
+  while (otp) {
+    generatedOTP = otpGntr.generate(length, {
+      lowerCaseAlphabets: false,
+      specialChars: false,
+      upperCaseAlphabets: false,
+    });
+    otp = await OtpSchema.findOne({
+      $and: [{ otp: generatedOTP }, { email }],
+    });
+  }
+
+  let addTime = 60 * 1000;
+  let expirationTime = Date.now() + addTime;
+  otp = await OtpSchema.create({
+    otp: generatedOTP,
+    email,
+    expirationTime,
+  });
+
   return generatedOTP;
+}
+
+async function MailSender(receiverMail, title, textBody, htmlBody) {
+  try {
+    const transporter = nodemailer.createTransport({
+      host: "smtp-relay.brevo.com",
+      port: 587,
+      secure: false,
+      auth: {
+        user: process.env.SMTP_SERVER_AUTH,
+        pass: process.env.SMTP_SERVER_PASS,
+      },
+    });
+
+    const info = await transporter.sendMail({
+      from: `Dr. MPS Group Of Instituitions 👻" <${process.env.SENDER_EMAIL}>`,
+      to: receiverMail,
+      subject: title,
+      text: textBody,
+      html: htmlBody,
+    });
+    return info;
+  } catch (error) {
+    console.log(error);
+    ErrorHandler(error);
+  }
 }
