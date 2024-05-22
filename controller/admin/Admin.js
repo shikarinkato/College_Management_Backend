@@ -18,7 +18,7 @@ export const AdminOTP = async (req, res, next) => {
       let admin = await AdminSchema.findOne({ email });
 
       if (admin) {
-        res.status(401).json({
+        res.status(400).json({
           message: "Admin already Exist with This Email. Please Login Again",
           success: false,
         });
@@ -52,7 +52,7 @@ export const AdminOTP = async (req, res, next) => {
           });
 
           if (info) {
-            res.status(201).json({
+            res.status(200).json({
               message: "OTP Send Successfully Kindly Check your email",
               success: true,
             });
@@ -96,6 +96,8 @@ export const VerfiyAdminOTP = async (req, res) => {
           return;
         } else {
           res.status(200).json({
+            message: "OTP Verified Succesfully",
+            success: true,
             ftdOTP,
           });
           return;
@@ -380,7 +382,7 @@ export const admnLoginOTP = async (req, res) => {
                     </div>`,
             });
             if (info) {
-              res.status(401).json({
+              res.status(200).json({
                 message: "OTP Send Successfully for Admin Login",
                 success: true,
               });
@@ -429,13 +431,23 @@ export const Login = async (req, res) => {
     } else {
       otp = +otp;
       let currentTime = Date.now();
+      let adminAcnt;
 
-      let adminAcnt = await AdminSchema.findOne({
-        $or: [
-          { email: emailOrMobileNumber },
-          { mobile_no: emailOrMobileNumber },
-        ],
-      });
+      if (typeof emailOrMobileNumber === "string") {
+        adminAcnt = await AdminSchema.findOne({
+          email: emailOrMobileNumber,
+        });
+      } else if (typeof emailOrMobileNumber === "number") {
+        adminAcnt = await AdminSchema.findOne({
+          mobile_no: emailOrMobileNumber,
+        });
+      } else {
+        res.status(400).json({
+          message: "Please Provide an Valid type of ID for Login",
+          success: false,
+        });
+        return;
+      }
 
       if (adminAcnt) {
         let ftdOTP = await OtpSchema.findOne({
@@ -881,3 +893,4 @@ async function MailSender(receiverMail, title, textBody, htmlBody) {
     ErrorHandler(error);
   }
 }
+

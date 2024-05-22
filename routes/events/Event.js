@@ -2,11 +2,13 @@ import express from "express";
 import {
   BroadcastEvent,
   GetAllEvents,
-  GetDepmntEvents,
-  GetSemstrEvents,
 } from "../../controller/professor/Event.js";
 import { AdminAuthHandler } from "../../middlewares/AdminAuth.js";
 import { EventAuthHandler } from "../../middlewares/EventAuthHandler.js";
+import {
+  GetDepmntEvents,
+  GetSemstrEvents,
+} from "../../controller/events/Event.js";
 
 const router = express.Router();
 
