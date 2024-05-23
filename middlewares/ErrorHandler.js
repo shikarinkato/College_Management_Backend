@@ -33,6 +33,12 @@ export const ErrorHandler = (req, res, err) => {
       success: false,
     });
     return;
+  } else if (err.name === "TokenExpiredError") {
+    res.status(401).json({
+      message: "Token is Expired Pls Login Again",
+      success: false,
+    });
+    return;
   } else {
     res.status(500).json({
       message: "Currently we're down",

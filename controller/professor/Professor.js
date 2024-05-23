@@ -4,15 +4,31 @@ import bcryptjs from "bcryptjs";
 import jwt from "jsonwebtoken";
 
 export const getProfProfile = async (req, res) => {
-  let { mobile_no, password } = req.body;
+  let { emailOrMobileNumber, password } = req.body;
   try {
-    if (!mobile_no || !password) {
+    if (!emailOrMobileNumber || !password) {
       res
         .status(404)
         .json({ message: "Required fields are Missing", success: false });
       return;
     } else {
-      let prof = await ProfessorSchema.findOne({ mobile_no });
+      let prof;
+
+      if (typeof emailOrMobileNumber === "string") {
+        prof = await ProfessorSchema.findOne({
+          email: emailOrMobileNumber,
+        });
+      } else if (typeof emailOrMobileNumber === "number") {
+        prof = await ProfessorSchema.findOne({
+          mobile_no: emailOrMobileNumber,
+        });
+      } else {
+        res.status(400).json({
+          message: "Please Provide an Valid type of ID for Login",
+          success: false,
+        });
+        return;
+      }
       if (prof) {
         let isMatchedPass = await bcryptjs.compare(password, prof.password);
         if (isMatchedPass) {
@@ -45,7 +61,7 @@ export const getProfProfile = async (req, res) => {
         }
       } else {
         res.status(404).json({
-          message: "There's no Professor with specific Mobile Number",
+          message: "There's no Professor with specific  Details",
           success: false,
         });
       }

@@ -443,3 +443,59 @@ export const UpdateProfSalary = async (req, res) => {
     ErrorHandler(req, res, error);
   }
 };
+
+export const getAllProfessors = async (req, res) => {
+  try {
+    let prfrs = await ProfessorSchema.find({});
+    if (prfrs.length > 0) {
+      res.status(200).json({
+        message: "All Professors fetched Succesfully",
+        prfrs,
+        success: true,
+      });
+    } else {
+      res
+        .status(404)
+        .json({ message: "Can't find any Professor", success: false });
+    }
+  } catch (error) {
+    console.log(error);
+    ErrorHandler(req, res, error);
+  }
+};
+
+export const getPfrssBySearch = async (req, res) => {
+  let { pName } = req.query;
+  try {
+    if (!pName) {
+      res
+        .status(404)
+        .json({ message: "Required fields are Missing", success: false });
+      return;
+    } else {
+      let prof = await ProfessorSchema.find({
+        $or: [
+          { firstName: { $regex: `${pName}`, $options: "i" } },
+          { lastName: { $regex: `${pName}`, $options: "i" } },
+        ],
+      });
+      if (prof.length > 0) {
+        let prf = prof.length > 1 ? "Professors" : "Professor";
+        res
+          .status(200)
+          .json({
+            message: `${prf} fetched Succesfully`,
+            prof,
+            success: false,
+          });
+        return;
+      } else {
+        res.status(404).json({ message: "0 Professor found", success: false });
+        return;
+      }
+    }
+  } catch (error) {
+    console.log(error);
+    ErrorHandler(req, res, error);
+  }
+};

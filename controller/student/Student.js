@@ -5,15 +5,32 @@ import jwt from "jsonwebtoken";
 import SemesterSchema from "../../models/department/Semester.js";
 
 export const getProfile = async (req, res) => {
-  let { mobile_no, password } = req.body;
+  let { emailOrMobileNumber, password } = req.body;
   try {
-    if (!mobile_no || !password) {
+    if (!emailOrMobileNumber || !password) {
       res
         .status(404)
         .json({ message: "Required fields are Missing", success: false });
       return;
     } else {
-      let student = await StudentSchema.findOne({ mobile_no });
+      let student;
+
+      if (typeof emailOrMobileNumber === "string") {
+        student = await StudentSchema.findOne({
+          email: emailOrMobileNumber,
+        });
+      } else if (typeof emailOrMobileNumber === "number") {
+        student = await StudentSchema.findOne({
+          mobile_no: emailOrMobileNumber,
+        });
+      } else {
+        res.status(400).json({
+          message: "Please Provide an Valid type of ID for Login",
+          success: false,
+        });
+        return;
+      }
+
       if (student) {
         let isMatchedPass = await bcryptjs.compare(password, student.password);
         if (isMatchedPass) {
@@ -46,7 +63,7 @@ export const getProfile = async (req, res) => {
         }
       } else {
         res.status(404).json({
-          message: "There's no student with specific Mobile Number",
+          message: "There's no student with specific Details ",
           success: false,
         });
       }

@@ -436,11 +436,15 @@ export const Login = async (req, res) => {
       if (typeof emailOrMobileNumber === "string") {
         adminAcnt = await AdminSchema.findOne({
           email: emailOrMobileNumber,
-        });
+        }).select(
+          " -adminID -fatherName -religion -national_id -national_id_number -current_address -documents -password "
+        );
       } else if (typeof emailOrMobileNumber === "number") {
         adminAcnt = await AdminSchema.findOne({
           mobile_no: emailOrMobileNumber,
-        });
+        }).select(
+          " -adminID -fatherName -religion -national_id -national_id_number -current_address -documents -password "
+        );
       } else {
         res.status(400).json({
           message: "Please Provide an Valid type of ID for Login",
@@ -450,43 +454,38 @@ export const Login = async (req, res) => {
       }
 
       if (adminAcnt) {
+        console.log(adminAcnt);
         let ftdOTP = await OtpSchema.findOne({
-          $and: [{ email: adminAcnt.email }, { otp }],
+          $and: [
+            { email: adminAcnt.email },
+            { otp },
+            { expirationTime: { $gt: currentTime } },
+          ],
         });
-
         if (ftdOTP) {
-          let isExpired = ftdOTP.expirationTime < currentTime;
-          if (isExpired) {
-            res.status(400).json({
-              message: "OTP Expired!  Please Send it again",
-              success: false,
+          let token = jwt.sign(
+            {
+              adminToken: process.env.ADMIN_AUTHTOKEN,
+              admin_id: adminAcnt._id,
+            },
+            process.env.ADMIN_SECRET_KEY,
+            { expiresIn: "12h" }
+          );
+
+          if (token) {
+            res.status(200).json({
+              message: `Logged In Succesfully as Mr. ${adminAcnt.firstName}`,
+              adminAcnt,
+              token,
+              success: true,
             });
             return;
           } else {
-            let token = jwt.sign(
-              {
-                adminToken: process.env.ADMIN_AUTHTOKEN,
-                admin_id: adminAcnt._id,
-              },
-              process.env.ADMIN_SECRET_KEY,
-              { expiresIn: "12h" }
-            );
-
-            if (token) {
-              res.status(200).json({
-                message: `Logged In Succesfully as Mr. ${adminAcnt.firstName}`,
-                adminAcnt,
-                token,
-                success: true,
-              });
-              return;
-            } else {
-              res.status(403).json({
-                message: `Failed to Login. Kindly Retry`,
-                success: false,
-              });
-              return;
-            }
+            res.status(403).json({
+              message: `Failed to Login. Kindly Retry`,
+              success: false,
+            });
+            return;
           }
         } else {
           res.status(400).json({
@@ -501,6 +500,28 @@ export const Login = async (req, res) => {
           success: false,
         });
       }
+    }
+  } catch (error) {
+    console.log(error);
+    ErrorHandler(req, res, error);
+  }
+};
+
+export const getAdminProfile = async (req, res) => {
+  let admin = req.admin;
+  try {
+    if (!admin) {
+      res.status(400).json({
+        message:
+          "Can't find Admin Profile Details. May be the Token you Provided is Incorrect",
+        success: false,
+      });
+    } else {
+      res.status(200).json({
+        message: "Admin Profile fetched Succesfully",
+        admin,
+        success: true,
+      });
     }
   } catch (error) {
     console.log(error);
@@ -893,4 +914,3 @@ async function MailSender(receiverMail, title, textBody, htmlBody) {
     ErrorHandler(error);
   }
 }
-
