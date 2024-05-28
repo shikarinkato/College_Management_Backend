@@ -6,6 +6,7 @@ import AdminSchema from "../../models/admin/Admin.js";
 import ProfessorSchema from "../../models/professor/Professor.js";
 import DepartmentSchema from "../../models/department/Department.js";
 import SemesterSchema from "../../models/department/Semester.js";
+import MailSender from "./Admin.js";
 
 export const AddNewProfessor = async (req, res) => {
   let {
@@ -133,45 +134,35 @@ export const AddNewProfessor = async (req, res) => {
                 if (qualification.length > 0) {
                   let admin = await AdminSchema.find({});
 
-                  const transporter = nodemailer.createTransport({
-                    host: "smtp-relay.brevo.com",
-                    port: 587,
-                    secure: false,
-                    auth: {
-                      user: process.env.SMTP_SERVER_AUTH,
-                      pass: process.env.SMTP_SERVER_PASS,
-                    },
-                  });
+                  const info = await MailSender(
+                    email,
+                    "Welcome at Dr.MPS Group Of Institutions,Agra",
+                    `Dear Professor, Mr./Mrs./Ms.${firstName + " " + lastName},
 
-                  const info = await transporter.sendMail({
-                    from: `${process.env.SENDER_NAME} 👻" <${process.env.SENDER_EMAIL}>`,
-                    to: email,
-                    subject: "Welcome at Dr.MPS Group Of Institutions,Agra",
-                    text: `Dear Professor, Mr./Mrs./Ms.${
-                      firstName + " " + lastName
-                    },
+                        Welcome to our college community! We are thrilled to have you join us. Your expertise and passion will undoubtedly inspire our students. Looking forward to an enriching academic journey together.
 
-                          Welcome to our college community! We are thrilled to have you join us. Your expertise and passion will undoubtedly inspire our students. Looking forward to an enriching academic journey together.
+                        Best regards,
+                      
+                        ${admin[0].firstName + " " + admin[0].lastName}
+                                                    Admin
+                        Dr.MPS Group Of Institutions,Agra`,
+                    `
+                        <h4>Dear Professor, Mr./Mrs./Ms.${
+                          firstName + " " + lastName
+                        }</h4>
+    
+                        <p>  Welcome to our college community! We are thrilled to have you join us. Your expertise and  passion will undoubtedly inspire our students. Looking forward to an enriching academic journey together.</p>
+    
+                       <span>Best Regards</span>
+    
+                       <span> ${
+                         admin[0].firstName + " " + admin[0].lastName
+                       }</span>
+                       <span>Admin</span>
+                       <span> Dr.MPS Group Of Institutions,Agra </span>
+                        `
+                  );
 
-                          Best regards,
-                        
-                          ${admin[0].firstName + " " + admin[0].lastName}
-                                                      Admin
-                          Dr.MPS Group Of Institutions,Agra `,
-                    html: `
-                    <h4>Dear Professor, Mr./Mrs./Ms.${
-                      firstName + " " + lastName
-                    }</h4>
-
-                    <p>  Welcome to our college community! We are thrilled to have you join us. Your expertise and  passion will undoubtedly inspire our students. Looking forward to an enriching academic journey together.</p>
-
-                   <span>Best Regards</span>
-
-                   <span> ${admin[0].firstName + " " + admin[0].lastName}</span>
-                   <span>Admin</span>
-                   <span> Dr.MPS Group Of Institutions,Agra </span>
-                    `,
-                  });
                   if (info?.accepted.length <= 0 || info?.rejected.length > 0) {
                     professor = await ProfessorSchema.findByIdAndDelete(
                       professor._id
@@ -201,11 +192,10 @@ export const AddNewProfessor = async (req, res) => {
                 }
               })
               .catch(async (err) => {
+                ErrorHandler(req, res, err);
                 professor = await ProfessorSchema.findByIdAndDelete(
                   professor._id
                 );
-
-                throw new Error(err);
               });
           } else {
             professor = await ProfessorSchema.findByIdAndDelete(professor._id);
@@ -481,13 +471,11 @@ export const getPfrssBySearch = async (req, res) => {
       });
       if (prof.length > 0) {
         let prf = prof.length > 1 ? "Professors" : "Professor";
-        res
-          .status(200)
-          .json({
-            message: `${prf} fetched Succesfully`,
-            prof,
-            success: false,
-          });
+        res.status(200).json({
+          message: `${prf} fetched Succesfully`,
+          prof,
+          success: false,
+        });
         return;
       } else {
         res.status(404).json({ message: "0 Professor found", success: false });

@@ -7,7 +7,7 @@ import StudentSchema from "../../models/student/StudentSchema.js";
 
 // for HOD of Specific Department
 export const EventPush = async (req, res) => {
-  let hod = req.hod;
+  let hod = req.hod || req.admin;
   let { title, description, department, semester, event_date } = req.body;
   try {
     if (
@@ -38,7 +38,7 @@ export const EventPush = async (req, res) => {
       // console.log(event_date);
       event_date = event_date.toISOString();
 
-      let isCrctHOD = hod.departments[0].name === department;
+      let isCrctHOD = req.hod ? hod.departments[0].name === department : true;
       if (isCrctHOD) {
         let dep = await DepartmentSchema.findOne({ name: department });
 
@@ -98,7 +98,6 @@ export const EventPush = async (req, res) => {
                     },
                   });
                   if (dep) {
-                    console.log(evnt);
                     let sem = await SemesterSchema.findByIdAndUpdate(
                       fndSem.id,
                       {
@@ -186,7 +185,7 @@ export const EventPush = async (req, res) => {
 
 // Not Implemented Properly Yet
 export const BroadcastEvent = async (req, res) => {
-  let hod = req.hod;
+  let hod = req.hod || req.admin;
   let { evntID } = req.params;
   try {
     if (!hod || !evntID) {
@@ -292,7 +291,7 @@ const MessageMail = async (rcvr_email, title, text_body, html_body) => {
       });
     } else {
       const transporter = nodemailer.createTransport({
-        host: "smtp-relay.brevo.com",
+        host: process.env.SMTP_HOST,
         port: 587,
         secure: false,
         auth: {
@@ -313,30 +312,3 @@ const MessageMail = async (rcvr_email, title, text_body, html_body) => {
     return error;
   }
 };
-
-// for Admin
-export const GetAllEvents = async (req, res) => {
-  try {
-    let events = await EventSchema.find({});
-
-    if (events.length > 0) {
-      res.status(200).json({
-        message: "All Events Fetched Succesfully",
-        success: true,
-        events,
-      });
-      return;
-    } else {
-      res.status(404).json({
-        message: "0 Events Found",
-        success: false,
-      });
-      return;
-    }
-  } catch (error) {
-    // console.log(error);
-    ErrorHandler(req, res, error);
-  }
-};
-
-

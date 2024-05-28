@@ -26,30 +26,20 @@ export const AdminOTP = async (req, res, next) => {
         let generatedOTP = await GenerateOTP(5, email);
 
         if (generatedOTP && email) {
-          const transporter = nodemailer.createTransport({
-            host: "smtp-relay.brevo.com",
-            port: 587,
-            secure: false,
-            auth: {
-              user: process.env.SMTP_SERVER_AUTH,
-              pass: process.env.SMTP_SERVER_PASS,
-            },
-          });
-
-          const info = await transporter.sendMail({
-            from: `Dr. MPS Group Of Instituitions 👻" <${process.env.SENDER_EMAIL}>`,
-            to: email,
-            subject: "OTP email to verify your Signup ",
-            text: `This otp is to verify your email from \n Dr.MPS Group Of Intituitions, Agra\n
-                   Your Otp is: ${generatedOTP} \n Expires in 1 Minute`,
-            html: `<div>
-                     <p>This otp is to verify your email from \n
-                      Dr.MPS Group Of Intituitions, Agra</p>
-                      <p>
-                      Your Otp is: ${generatedOTP} \n Expires in 1 Minute
-                      </p>
-            </div>`,
-          });
+          const info = await MailSender(
+            email,
+            "OTP email to verify your Signup ",
+            `This otp is to verify your email from \n Dr.MPS Group Of Intituitions, Agra\n
+            Your Otp is: ${generatedOTP} \n Expires in 1 Minute`,
+            `<div>
+               <p>This otp is to verify your email from \n
+                  Dr.MPS Group Of Intituitions, Agra
+               </p>
+               <p>
+                Your Otp is: ${generatedOTP} \n Expires in 1 Minute
+               </p>
+             </div>`
+          );
 
           if (info) {
             res.status(200).json({
@@ -85,23 +75,17 @@ export const VerfiyAdminOTP = async (req, res) => {
     } else {
       +otp;
       let currentTime = Date.now();
-      let ftdOTP = await OtpSchema.findOne({ $and: [{ otp }, { email }] });
+      let ftdOTP = await OtpSchema.findOne({
+        $and: [{ otp }, { email }, { expirationTime: { $gt: currentTime } }],
+      });
 
       if (ftdOTP) {
-        if (currentTime > ftdOTP.expirationTime) {
-          res.status(400).json({
-            message: "OTP Expired Kindly Send it Again",
-            success: false,
-          });
-          return;
-        } else {
-          res.status(200).json({
-            message: "OTP Verified Succesfully",
-            success: true,
-            ftdOTP,
-          });
-          return;
-        }
+        res.status(200).json({
+          message: "OTP Verified Succesfully",
+          success: true,
+          ftdOTP,
+        });
+        return;
       } else {
         res.status(400).json({
           message: "Incorrect OTP or Maye be OTP got Expired",
@@ -234,64 +218,65 @@ export const CreateAdmin = async (req, res) => {
                   current_address: { admin_id: admin._id },
                 });
                 if (admin) {
-                  const transporter = nodemailer.createTransport({
-                    host: "smtp-relay.brevo.com",
-                    port: 587,
-                    secure: false,
-                    auth: {
-                      user: process.env.SMTP_SERVER_AUTH,
-                      pass: process.env.SMTP_SERVER_PASS,
-                    },
-                  });
+                  const info = await MailSender(
+                    email,
+                    "Warm Welcome to Our New College Admin!",
+                    `Dear ${firstName + " " + lastName},
 
-                  const info = await transporter.sendMail({
-                    from: `Dr. MPS Group Of Instituitions 👻" <${process.env.SENDER_EMAIL}>`,
-                    to: email,
-                    subject: "Warm Welcome to Our New College Admin!",
-                    text: `Dear ${firstName + " " + lastName},
+                  Welcome to the team! We're thrilled to have you \n
+                  on board as our new admin. Your expertise and experience \n
+                  will undoubtedly be invaluable as we navigate our college's \n
+                  journey ahead. If you need any assistance settling in or have \n
+                  any questions, please don't hesitate to reach out. Looking\n
+                  forward to working together!\n
+           
+                  This your AdminID:- ${adminID}. It'll be used as Temporary Password when ever <br>
+                  you try to  login.
 
-                           Welcome to the team! We're thrilled to have you \n
-                           on board as our new admin. Your expertise and experience \n
-                           will undoubtedly be invaluable as we navigate our college's \n
-                           journey ahead. If you need any assistance settling in or have \n
-                           any questions, please don't hesitate to reach out. Looking\n
-                           forward to working together!\n
-                    
-                           This your AdminID:- ${adminID}. It'll be used as Temporary Password when ever <br>
-                           you try to  login.
-
-                           We recommend you to Create a New Password for Security Concerns.
+                  We recommend you to Create a New Password for Security Concerns.
 
 
-                    Best regards,
-                    Dr. MPS Group Of Institutions, Agra`,
-                    html: `<div>
-                    <h1>Dear ${firstName + " " + lastName}</h1>
-                    <p>
-                       Welcome to the team! We're thrilled to have you on \n
-                       board as our new admin. Your expertise and  experience \n
-                       will undoubtedly be invaluable as we navigate our college's \n
-                       journey ahead. If you need any assistance settling in or \n
-                       have any questions, please don't hesitate to reach out. \n
-                       Looking forward to working together!
-                    </p>
-                    <p> This your AdminID:- ${adminID}. It'll be used as Temporary Password when ever <br>
-                        you try to  login. 
-                    </p>
-                    <br>
-                    <p>
-                        We recommend you to Create a New Password for Security Concerns.
-                    </p>
-                    <br>
-                    <p>Best regards,<br>
-                       Dr. MPS Group Instituitions, Agra</p>
-                  </div>`,
-                  });
-                  res.status(201).json({
-                    message: "Admin Account Created Succesfully",
-                    admin,
-                    success: true,
-                  });
+           Best regards,
+           Dr. MPS Group Of Institutions, Agra`,
+                    `<div>
+           <h1>Dear ${firstName + " " + lastName}</h1>
+           <p>
+              Welcome to the team! We're thrilled to have you on \n
+              board as our new admin. Your expertise and  experience \n
+              will undoubtedly be invaluable as we navigate our college's \n
+              journey ahead. If you need any assistance settling in or \n
+              have any questions, please don't hesitate to reach out. \n
+              Looking forward to working together!
+           </p>
+           <p> This your AdminID:- ${adminID}. It'll be used as Temporary Password when ever <br>
+               you try to  login. 
+           </p>
+           <br>
+           <p>
+               We recommend you to Create a New Password for Security Concerns.
+           </p>
+           <br>
+           <p>Best regards,<br>
+              Dr. MPS Group Instituitions, Agra</p>
+         </div>`
+                  );
+
+                  if (info) {
+                    res.status(201).json({
+                      message: "Admin Account Created Succesfully",
+                      admin,
+                      success: true,
+                    });
+                    return;
+                  } else {
+                    admin = await AdminSchema.findByIdAndDelete(admin._id);
+                    res.status(500).json({
+                      message:
+                        "Admin account creation failed because the welcome email could not be sent",
+                      success: false,
+                    });
+                    return;
+                  }
                 } else {
                   admin = await AdminSchema.findByIdAndDelete(admin._id);
                   res.status(500).json({
@@ -299,6 +284,7 @@ export const CreateAdmin = async (req, res) => {
                       "Failed Create Admin account due to address allocation Issue",
                     success: false,
                   });
+                  return;
                 }
               })
               .catch(async (err) => {
@@ -355,32 +341,23 @@ export const admnLoginOTP = async (req, res) => {
         if (isMatchedPass) {
           let generatedOTP = await GenerateOTP(5, adminAcnt.email);
           if (generatedOTP) {
-            const transporter = nodemailer.createTransport({
-              host: "smtp-relay.brevo.com",
-              port: 587,
-              secure: false,
-              auth: {
-                user: process.env.SMTP_SERVER_AUTH,
-                pass: process.env.SMTP_SERVER_PASS,
-              },
-            });
+            const info = await MailSender(
+              adminAcnt.email,
+              "Verify Login",
+              `Kindly Enter This OTP to login \n 
+               Your Otp is: ${generatedOTP} \n 
+               Expires in 1 Minute.
 
-            const info = await transporter.sendMail({
-              from: `Dr. MPS Group Of Instituitions 👻" <${process.env.SENDER_EMAIL}>`,
-              to: adminAcnt.email,
-              subject: "Verify login ",
-              text: `Kindly Enter This OTP to login \n 
-                       Your Otp is: ${generatedOTP} \n 
-                       Expires in 1 Minute.
-                                Regards
-                                   Dr.MPS Group Of Intituitions
-                                   Agra`,
-              html: `<div>
-                     <p>Kindly Enter This OTP to login</p>
-                      <p>Your Otp is: ${generatedOTP} \n Expires in 1 Minute. </p>
-                      <p>Dr. MPS Group of Institutions, Agra</p>
-                    </div>`,
-            });
+               Regards
+               Dr.MPS Group Of Intituitions
+               Agra`,
+              `<div>
+               <p>Kindly Enter This OTP to login</p>
+                <p>Your Otp is: ${generatedOTP} \n Expires in 1 Minute. </p>
+                <p>Dr. MPS Group of Institutions, Agra</p>
+              </div>`
+            );
+
             if (info) {
               res.status(200).json({
                 message: "OTP Send Successfully for Admin Login",
@@ -454,7 +431,6 @@ export const Login = async (req, res) => {
       }
 
       if (adminAcnt) {
-        console.log(adminAcnt);
         let ftdOTP = await OtpSchema.findOne({
           $and: [
             { email: adminAcnt.email },
@@ -889,10 +865,15 @@ export async function GenerateOTP(length, email) {
   return generatedOTP;
 }
 
-async function MailSender(receiverMail, title, textBody, htmlBody) {
+export default async function MailSender(
+  receiverMail,
+  title,
+  textBody,
+  htmlBody
+) {
   try {
     const transporter = nodemailer.createTransport({
-      host: "smtp-relay.brevo.com",
+      host: process.env.SMTP_HOST,
       port: 587,
       secure: false,
       auth: {

@@ -1,7 +1,7 @@
-import { ErrorHandler } from "../../middlewares/ErrorHandler.js";
-import ProfessorSchema from "../../models/professor/Professor.js";
 import bcryptjs from "bcryptjs";
 import jwt from "jsonwebtoken";
+import { ErrorHandler } from "../../middlewares/ErrorHandler.js";
+import ProfessorSchema from "../../models/professor/Professor.js";
 
 export const getProfProfile = async (req, res) => {
   let { emailOrMobileNumber, password } = req.body;
@@ -71,3 +71,4 @@ export const getProfProfile = async (req, res) => {
     ErrorHandler(req, res, error);
   }
 };
+

@@ -28,6 +28,7 @@ import {
   updateStudentFee,
 } from "../../controller/admin/Student.js";
 import { AdminAuthHandler } from "../../middlewares/AdminAuth.js";
+import { EventPush } from "../../controller/professor/Event.js";
 
 let router = express.Router();
 
@@ -39,6 +40,7 @@ router.post("/semester/add", AdminAuthHandler, createSemester);
 router.post("/generateOTP/signup", AdminOTP);
 router.post("/generateOTP/login", admnLoginOTP);
 router.post("/create/profile", CreateAdmin);
+router.post("/create/event", AdminAuthHandler, EventPush);
 router.post(
   "/generateOTP/update_login_ids",
   AdminAuthHandler,
@@ -46,7 +48,7 @@ router.post(
 );
 
 // get APIs
-router.get("/get/student/:mobile_no", AdminAuthHandler, GetStudentProfile);
+router.get("/get/student/", AdminAuthHandler, GetStudentProfile);
 router.get("/get/profile", AdminAuthHandler, getAdminProfile);
 router.get("/get/allStudents", AdminAuthHandler, GetAllStudents);
 router.get("/get/all_professors", AdminAuthHandler, getAllProfessors);
