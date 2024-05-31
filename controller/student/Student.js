@@ -5,7 +5,7 @@ import jwt from "jsonwebtoken";
 import SemesterSchema from "../../models/department/Semester.js";
 
 export const getProfile = async (req, res) => {
-  let { emailOrMobileNumber, password } = req.body;
+  let { emailOrMobileNumber, password } = req.query;
   try {
     if (!emailOrMobileNumber || !password) {
       res
@@ -40,7 +40,7 @@ export const getProfile = async (req, res) => {
             { expiresIn: "5d" }
           );
           if (token) {
-            res.status(404).json({
+            res.status(200).json({
               message: "Student profile Fetched Succesfully",
               student,
               token,
@@ -209,6 +209,43 @@ export const updateFee = async (req, res) => {
     }
   } catch (error) {
     console.log(error);
+    ErrorHandler(req, res, error);
+  }
+};
+
+export const searchStudent = async (req, res) => {
+  let { stName } = req.query;
+  try {
+    if (!stName) {
+      res
+        .status(404)
+        .json({ message: "Required field is Missing", success: false });
+      return;
+    } else {
+      let student = await StudentSchema.find({
+        $or: [
+          { firstName: { $regex: stName, $options: "i" } },
+          { lastName: { $regex: stName, $options: "i" } },
+          { fullName: { $regex: stName, $options: "i" } },
+        ],
+      });
+      if (student.length > 0) {
+        let stdnt = student.length > 1 ? "Students" : "Student";
+        res.status(200).json({
+          message: `${stdnt} found Successfully`,
+          student,
+          success: true,
+        });
+        return;
+      } else {
+        res.status(404).json({
+          message: "There's no student with this Search",
+          success: false,
+        });
+        return;
+      }
+    }
+  } catch (error) {
     ErrorHandler(req, res, error);
   }
 };

@@ -18,6 +18,7 @@ import {
   AssignSemToProfessor,
   getAllProfessors,
   getPfrssBySearch,
+  sendNoticeToPrf,
   UpdateProfSalary,
 } from "../../controller/admin/Professor.js";
 import { createSemester } from "../../controller/admin/Semester.js";
@@ -46,6 +47,7 @@ router.post(
   AdminAuthHandler,
   admnLgnInfUpdtnOTP
 );
+router.post("/notice/professor", AdminAuthHandler, sendNoticeToPrf);
 
 // get APIs
 router.get("/get/student/", AdminAuthHandler, GetStudentProfile);

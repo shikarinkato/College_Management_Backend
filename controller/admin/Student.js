@@ -78,10 +78,14 @@ export const AddNewStudent = async (req, res) => {
         let students = await StudentSchema.find();
         let pass = await otpGenerator.generate(10);
         let hashedPassword = await bcryptjs.hash(pass, 12);
+        firstName = firstName.charAt(0).toUpperCase() + firstName.slice(1);
+        lastName = lastName.charAt(0).toUpperCase() + lastName.slice(1);
+        let fullName = firstName + " " + lastName;
         student = await StudentSchema.create({
           studentID: pass,
           firstName,
           lastName,
+          fullName,
           fatherName,
           motherName,
           mobile_no,

@@ -31,6 +31,7 @@ export const getProfProfile = async (req, res) => {
       }
       if (prof) {
         let isMatchedPass = await bcryptjs.compare(password, prof.password);
+        console.log(isMatchedPass);
         if (isMatchedPass) {
           const token = jwt.sign(
             { id: prof._id },
@@ -71,4 +72,3 @@ export const getProfProfile = async (req, res) => {
     ErrorHandler(req, res, error);
   }
 };
-

@@ -6,6 +6,7 @@ import AdminSchema from "../../models/admin/Admin.js";
 import ProfessorSchema from "../../models/professor/Professor.js";
 import DepartmentSchema from "../../models/department/Department.js";
 import SemesterSchema from "../../models/department/Semester.js";
+import NoticeSchema from "../../models/notice/Notice.js";
 import MailSender from "./Admin.js";
 
 export const AddNewProfessor = async (req, res) => {
@@ -75,10 +76,14 @@ export const AddNewProfessor = async (req, res) => {
       } else {
         let pass = otpGenerator.generate(8);
         let hashedPassword = await bcryptjs.hash(pass, 12);
+        firstName = firstName.charAt(0).toUpperCase() + firstName.slice(1);
+        lastName = lastName.charAt(0).toUpperCase() + lastName.slice(1);
+        let fullName = firstName + " " + lastName;
         professor = await ProfessorSchema.create({
           professorID: pass,
           firstName,
           lastName,
+          fullName,
           fatherName,
           mobile_no,
           departments,
@@ -484,6 +489,73 @@ export const getPfrssBySearch = async (req, res) => {
     }
   } catch (error) {
     console.log(error);
+    ErrorHandler(req, res, error);
+  }
+};
+
+export const sendNoticeToPrf = async (req, res) => {
+  let admin = req.admin;
+  let { prof_id, notice_body, title } = req.body;
+  try {
+    if (!prof_id || !notice_body || !admin || !title) {
+      res
+        .status(404)
+        .json({ message: "Required fields are  Missing", success: false });
+      return;
+    } else {
+      let prof = await ProfessorSchema.findById(prof_id);
+
+      if (prof) {
+        let notice = await NoticeSchema.create({
+          prof_id: prof._id,
+          prof_name: prof.fullName,
+          notice_body,
+          notice_title: title,
+        });
+
+        if (notice) {
+          let info = await MailSender(
+            prof.email,
+            title,
+            `${notice_body}`,
+            `<h3>${title}</h3>
+            <br>
+            <p>${notice_body}</p>`
+          );
+          if (info) {
+            notice = await NoticeSchema.findByIdAndUpdate(notice._id, {
+              is_Sent: true,
+            });
+            let intro = prof.gender === "male" ? "Mr." : "Ms.";
+            res.status(201).json({
+              message: `Notice sent Succesfully to ${intro} ${prof.fullName}`,
+              success: true,
+            });
+            return;
+          } else {
+            notice = await NoticeSchema.findByIdAndDelete(notice._id);
+            res.status(500).json({
+              message:
+                "Sorry Currently we can't send Notice to Professor because of E-mail failure",
+              success: false,
+            });
+            return;
+          }
+        } else {
+          res.status(500).json({
+            message: "Sorry Currently we can't send Notice to Professor",
+            success: false,
+          });
+          return;
+        }
+      } else {
+        res
+          .status(404)
+          .json({ message: "Professor not Found", success: false });
+        return;
+      }
+    }
+  } catch (error) {
     ErrorHandler(req, res, error);
   }
 };

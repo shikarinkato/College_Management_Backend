@@ -5,6 +5,7 @@ const Student = mongoose.Schema(
     studentID: { type: String, required: true },
     firstName: { type: String, required: true },
     lastName: { type: String, required: true },
+    fullName: { type: String, required: true },
     fatherName: { type: String, required: true },
     motherName: { type: String, required: true },
     mobile_no: { type: Number, required: true },

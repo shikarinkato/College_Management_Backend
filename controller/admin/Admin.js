@@ -410,24 +410,21 @@ export const Login = async (req, res) => {
       let currentTime = Date.now();
       let adminAcnt;
 
-      if (typeof emailOrMobileNumber === "string") {
+      let emailRegex = /^[^s@]+@[^s@]+.[^s@]+$/;
+
+      if (emailRegex.test(emailOrMobileNumber)) {
         adminAcnt = await AdminSchema.findOne({
           email: emailOrMobileNumber,
         }).select(
           " -adminID -fatherName -religion -national_id -national_id_number -current_address -documents -password "
         );
-      } else if (typeof emailOrMobileNumber === "number") {
+      } else {
+        emailOrMobileNumber = +emailOrMobileNumber;
         adminAcnt = await AdminSchema.findOne({
           mobile_no: emailOrMobileNumber,
         }).select(
           " -adminID -fatherName -religion -national_id -national_id_number -current_address -documents -password "
         );
-      } else {
-        res.status(400).json({
-          message: "Please Provide an Valid type of ID for Login",
-          success: false,
-        });
-        return;
       }
 
       if (adminAcnt) {
